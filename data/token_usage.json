@@ -1,0 +1,39 @@
+{
+  "2025-06-18": {
+    "NewsHunter": {
+      "total_tokens": 988,
+      "total_cost": 0.0,
+      "calls": 1,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 988,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-06-19": {
+    "NewsHunter": {
+      "total_tokens": 1635,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1635,
+          "cost": 0.0
+        }
+      }
+    },
+    "NewsHunter-Breaking": {
+      "total_tokens": 652,
+      "total_cost": 9.779999999999999e-05,
+      "calls": 2,
+      "models_used": {
+        "gpt-4o-mini": {
+          "tokens": 652,
+          "cost": 9.779999999999999e-05
+        }
+      }
+    }
+  }
+}
