@@ -21,8 +21,8 @@ class NewsSourceManager:
             feed = feedparser.parse(source['url'])
             
             articles = []
-            for entry in feed.entries[:10]:  # Limit to 10 articles per source
-                
+            for entry in feed.entries[:8]:  # Limit to 10 articles per source
+
                 # Extract image URL
                 image_url = self._extract_image_from_entry(entry)
                 

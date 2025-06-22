@@ -67,7 +67,7 @@ class LLMClient:
             print(f"❌ OpenAI error: {e}")
             return {"error": str(e)}
     
-    def smart_generate(self, prompt: str, max_tokens: int = 500, priority: str = "normal") -> Dict[str, Any]:
+    def smart_generate(self, prompt: str, max_tokens: int = 800, priority: str = "normal") -> Dict[str, Any]:
         """Smart model selection based on priority and budget"""
         
         # For critical tasks or when Gemini fails, use OpenAI

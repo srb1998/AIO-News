@@ -14,7 +14,7 @@ class Settings:
         self.UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
         
         # Token Management
-        self.DAILY_TOKEN_BUDGET = int(os.getenv("DAILY_TOKEN_BUDGET", 10000))
+        self.DAILY_TOKEN_BUDGET = int(os.getenv("DAILY_TOKEN_BUDGET", 20000))
         self.COST_PER_1K_TOKENS_GEMINI = float(os.getenv("COST_PER_1K_TOKENS_GEMINI", 0.0))
         self.COST_PER_1K_TOKENS_OPENAI = float(os.getenv("COST_PER_1K_TOKENS_OPENAI", 0.00015))
         
@@ -34,12 +34,6 @@ class Settings:
                 "url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
                 "category": "general", 
                 "reliability": 9
-            },
-            {
-                "name": "TechCrunch",
-                "url": "http://feeds.feedburner.com/TechCrunch/",
-                "category": "tech",
-                "reliability": 8
             },
             {
                 "name": "BBC Technology",

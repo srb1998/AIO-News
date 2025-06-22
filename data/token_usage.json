@@ -35,5 +35,40 @@
         }
       }
     }
+  },
+  "2025-06-22": {
+    "NewsHunter": {
+      "total_tokens": 2245,
+      "total_cost": 0.0,
+      "calls": 3,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 2245,
+          "cost": 0.0
+        }
+      }
+    },
+    "HeadlineWizard-LLM": {
+      "total_tokens": 852,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 852,
+          "cost": 0.0
+        }
+      }
+    },
+    "HeadlineWizard": {
+      "total_tokens": 852,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 852,
+          "cost": 0.0
+        }
+      }
+    }
   }
 }

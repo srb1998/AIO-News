@@ -77,7 +77,7 @@ class NewsHunterAgent:
 
             {articles_text}
 
-            Return JSON with this exact structure:
+            Return only the JSON object with this structure:
             {{
                 "top_headlines": [
                     {{

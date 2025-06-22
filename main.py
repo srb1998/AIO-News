@@ -1,94 +1,99 @@
 from agents.news_hunter import NewsHunterAgent
+from agents.manager import ManagerAgent
 from core.token_manager import token_manager
 import json
 
-def test_daily_news_hunt():
-    """Test the daily news hunting functionality"""
-    print("🚀 Starting AI News Agency - Daily News Test")
-    print("=" * 50)
+def test_manager_workflow():
+    """Test the complete manager workflow"""
+    print("🚀 Testing Manager Agent - Complete Workflow")
+    print("=" * 60)
     
-    # Initialize News Hunter Agent
-    news_hunter = NewsHunterAgent()
+    # Initialize Manager
+    manager = ManagerAgent()
     
-    # Hunt for daily news
-    result = news_hunter.hunt_daily_news(max_articles=10)
+    # Check manager status
+    status = manager.get_workflow_status()
+    print(f"🔍 Manager Status: {status['manager_status']}")
+    print(f"💰 Token Budget: {status['token_budget']['remaining']} remaining")
+    print(f"🤖 Agents Available: {', '.join(status['agents_available'])}")
+    
+    if not status['ready_for_workflow']:
+        print("⚠️ Not enough tokens for workflow!")
+        return
+    
+    # Execute daily workflow
+    result = manager.execute_daily_workflow()
     
     if result.get("success"):
-        print("✅ Daily news hunt successful!")
-        print(f"📊 Articles processed: {result['articles_processed']}")
-        print(f"🚨 Breaking news found: {result['breaking_news_count']}")
+        print("\n✅ WORKFLOW SUCCESSFUL!")
+        print(f"📊 Workflow ID: {result['workflow_id']}")
         
-        # Try to parse the LLM response
-        try:
-            if isinstance(result['processed_articles'], str):
-                processed = json.loads(result['processed_articles'])
-            else:
-                processed = result['processed_articles']
-            
-            print(f"\n📰 Top Headlines ({len(processed.get('top_headlines', []))}):")
-            for i, headline in enumerate(processed.get('top_headlines', [])[:5], 1):
-                print(f"{i}. {headline.get('title', 'N/A')}")
-                print(f"   📁 {headline.get('category', 'N/A')} | 🔥 {headline.get('urgency', 'N/A')}")
-                print(f"   📝 {headline.get('summary', 'N/A')}")
-                print()
+        # Show step-by-step results
+        print("\n📋 Workflow Steps:")
+        for step in result["steps"]:
+            status_emoji = "✅" if step["status"] == "success" else "❌"
+            print(f"  {status_emoji} Step {step['step']}: {step['agent']}")
+            if "token_usage" in step and step["token_usage"]:
+                tokens = step["token_usage"].get("tokens", 0)
+                cost = step["token_usage"].get("cost", 0)
+                print(f"    💰 {tokens} tokens (${cost:.4f})")
         
-        except json.JSONDecodeError:
-            print("📄 Raw LLM Response:")
-            print(result['processed_articles'])
-    
+        # Show final output
+        final = result["final_output"]
+        print(f"\n🎯 Final Results:")
+        print(f"  📰 Total Headlines: {final['total_headlines']}")
+        print(f"  ⭐ Top Stories: {final['top_stories']}")
+        print(f"  📊 Categories: {final['categories']}")
+        
+        # Show top 5 headlines
+        print(f"\n🔥 TOP 5 HEADLINES:")
+        for i, headline in enumerate(final["headlines"][:5], 1):
+            print(f"  {i}. {headline['headline']}")
+            print(f"     📁 {headline['category']} | 🔥 Priority: {headline['priority']}")
+            print(f"     📝 {headline['summary']}")
+            print()
+        
+        print(f"💸 Total Cost: ${result['total_cost']:.4f}")
+        print(f"🎯 Total Tokens: {result['total_tokens']}")
+        
     else:
-        print("❌ Daily news hunt failed!")
+        print("❌ WORKFLOW FAILED!")
         print(f"Error: {result.get('error', 'Unknown error')}")
-    
-    # Show token usage summary
-    print("\n💰 Token Usage Summary:")
-    summary = token_manager.get_daily_summary()
-    print(f"Total tokens used: {summary['total_tokens']}")
-    print(f"Total cost: ${summary['total_cost']:.4f}")
-    print(f"Budget remaining: {summary['budget_remaining']} tokens")
-    
-    for agent_name, usage in summary['agents'].items():
-        print(f"  {agent_name}: {usage['total_tokens']} tokens (${usage['total_cost']:.4f})")
 
-def test_breaking_news():
-    """Test breaking news functionality"""
-    print("\n🚨 Testing Breaking News Detection")
+def test_breaking_news_workflow():
+    """Test breaking news workflow"""
+    print("\n🚨 Testing Breaking News Workflow")
     print("=" * 50)
     
-    news_hunter = NewsHunterAgent()
-    result = news_hunter.hunt_breaking_news()
-    
+    manager = ManagerAgent()
+    result = manager.execute_breaking_news_workflow()
+    print("result is :", result)
     if result.get("success"):
-        if result.get("breaking_news_found", 0) > 0:
-            print(f"🚨 Found {result['breaking_news_found']} breaking news articles!")
+        if result.get("breaking_news_count", 0) > 0:
+            print(f"🚨 {result['breaking_news_count']} BREAKING NEWS ALERTS!")
             
-            try:
-                if isinstance(result['processed_breaking_news'], str):
-                    processed = json.loads(result['processed_breaking_news'])
-                else:
-                    processed = result['processed_breaking_news']
-                
-                print("\n🚨 Urgent Alerts:")
-                for i, alert in enumerate(processed.get('urgent_alerts', []), 1):
-                    print(f"{i}. {alert.get('headline', 'N/A')}")
-                    print(f"   📝 {alert.get('summary', 'N/A')}")
-                    print(f"   💥 Impact: {alert.get('impact', 'N/A')}")
-                    print()
-            
-            except json.JSONDecodeError:
-                print("📄 Raw Breaking News Response:")
-                print(result['processed_breaking_news'])
+            for i, alert in enumerate(result["breaking_alerts"], 1):
+                print(f"  {i}. {alert['headline']}")
+                print(f"     🔥 Priority: {alert['priority']} | Urgency: {alert['urgency']}")
+                print(f"     📝 {alert['summary']}")
+                print()
         else:
-            print("✅ No breaking news found (which is good!)")
+            print("✅ No breaking news (good!)")
     else:
-        print("❌ Breaking news check failed!")
+        print(f"❌ Breaking news check failed: {result.get('error')}")
 
 if __name__ == "__main__":
-    # Test daily news hunt
-    test_daily_news_hunt()
+    # Test complete manager workflow
+    test_manager_workflow()
     
-    # Test breaking news  
-    test_breaking_news()
+    # Test breaking news
+    # test_breaking_news_workflow()
     
-    print("\n🎉 Testing completed!")
-    print("Check the 'data/token_usage.json' file for detailed token tracking.")
+    # Show final token summary
+    print("\n💰 Final Token Usage Summary:")
+    summary = token_manager.get_daily_summary()
+    print(f"Total tokens used today: {summary['total_tokens']}")
+    print(f"Total cost today: ${summary['total_cost']:.4f}")
+    print(f"Budget remaining: {summary['budget_remaining']} tokens")
+    
+    print("\n🎉 Manager Agent Testing Completed!")
