@@ -38,12 +38,12 @@
   },
   "2025-06-22": {
     "NewsHunter": {
-      "total_tokens": 6460,
+      "total_tokens": 7511,
       "total_cost": 0.0,
-      "calls": 7,
+      "calls": 8,
       "models_used": {
         "gemini-2.0-flash": {
-          "tokens": 6460,
+          "tokens": 7511,
           "cost": 0.0
         }
       }

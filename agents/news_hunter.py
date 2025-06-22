@@ -11,7 +11,7 @@ class NewsHunterAgent:
     
     @track_tokens("NewsHunter")
     def hunt_daily_news(self, max_articles: int = 15) -> Dict[str, Any]:
-        """Hunt for daily news articles"""
+        """Hunt for daily news articles and make engaging headlines"""
         print("🕵️ News Hunter Agent: Starting daily news hunt...")
         
         # Fetch articles from all sources
