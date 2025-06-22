@@ -10,7 +10,7 @@ class ManagerAgent:
         self.name = "NewsManager"
         self.agents = {
             "news_hunter": NewsHunterAgent(),
-            "headline_wizard": HeadlineWizardAgent()
+            # "headline_wizard": HeadlineWizardAgent()
         }
         self.workflow_state = {}
     
@@ -46,23 +46,23 @@ class ManagerAgent:
                 return workflow_result
             
             # Step 2: Headline Wizard - Create engaging headlines
-            print("\n🔄 Step 2: Headline Wizard - Creating headlines...")
-            wizard_result = self.agents["headline_wizard"].create_headlines(hunter_result)
+            # print("\n🔄 Step 2: Headline Wizard - Creating headlines...")
+            # wizard_result = self.agents["headline_wizard"].create_headlines(hunter_result)
             
-            workflow_result["steps"].append({
-                "step": 2,
-                "agent": "headline_wizard", 
-                "status": "success" if wizard_result.get("success") else "failed",
-                "token_usage": wizard_result.get("token_usage", {}),
-                "headlines_created": wizard_result.get("output_headlines", 0)
-            })
+            # workflow_result["steps"].append({
+            #     "step": 2,
+            #     "agent": "headline_wizard", 
+            #     "status": "success" if wizard_result.get("success") else "failed",
+            #     "token_usage": wizard_result.get("token_usage", {}),
+            #     "headlines_created": wizard_result.get("output_headlines", 0)
+            # })
             
-            if not wizard_result.get("success"):
-                workflow_result["error"] = "Headline Wizard failed"
-                return workflow_result
+            # if not wizard_result.get("success"):
+            #     workflow_result["error"] = "Headline Wizard failed"
+            #     return workflow_result
             
             # Step 3: Compile final output
-            final_headlines = wizard_result.get("headlines", [])
+            final_headlines = hunter_result.get("headlines", [])
             top_stories = [h for h in final_headlines if h.get("priority", 0) >= 7]
             
             workflow_result["final_output"] = {
@@ -103,7 +103,7 @@ class ManagerAgent:
         try:
             # Quick breaking news check
             hunter_result = self.agents["news_hunter"].hunt_breaking_news()
-            
+            print("hunter_result : ", hunter_result)
             if not hunter_result.get("success") or not hunter_result.get("breaking_news_found"):
                 return {
                     "success": True,

@@ -82,11 +82,11 @@ class HeadlineWizardAgent:
         """Process headlines using LLM - TOKEN EFFICIENT"""
         
         # Create compact prompt
-        articles_summary = self._create_compact_summary(articles)
+        # articles_summary = self._create_compact_summary(articles)
         
         prompt = f"""Transform these {len(articles)} news articles into Clickbaiting headlines.
 
-            {articles_summary}
+            {articles}
 
             Return JSON only:
             {{

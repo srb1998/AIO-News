@@ -1,3 +1,4 @@
+import re
 from core.token_manager import track_tokens, token_manager
 from core.llm_client import llm_client
 from core.news_sources import NewsSourceManager
@@ -27,15 +28,23 @@ class NewsHunterAgent:
         
         # Process articles with LLM
         processed_result = self._process_articles_with_llm(limited_articles)
-        
+        # print(f"Processed result from LLM: {processed_result}")
         if "error" in processed_result:
             return processed_result
         
+        content = processed_result.get("content", "")
+        cleaned = re.sub(r"^```json|```$", "", content.strip()).strip()
+        structured = json.loads(cleaned) if cleaned else {}
+        headlines = structured.get("top_headlines", [])
+        headlines.sort(key=lambda x: x.get("priority", 0), reverse=True)
+        breaking_news = structured.get("breaking_news", [])
+        breaking_news.sort(key=lambda x: x.get("priority", 0), reverse=True)
+
         return {
             "success": True,
-            "total_articles_found": len(raw_articles),
             "articles_processed": len(limited_articles),
-            "processed_articles": processed_result["content"],
+            "top_headlines": headlines,
+            "breaking_news": breaking_news,
             "token_usage": processed_result["token_usage"],
             "breaking_news_count": len([a for a in limited_articles if a['is_breaking']])
         }
@@ -74,23 +83,24 @@ class NewsHunterAgent:
         
         prompt = f"""
             Analyze these {len(articles)} news articles and return a JSON response:
-
+            Focus on: Clickbait headlines, engaging summaries, priority ranking.
             {articles_text}
 
             Return only the JSON object with this structure:
             {{
                 "top_headlines": [
                     {{
-                        "title": "Appealing headline which grabs attention",
-                        "summary": "2-sentence summary",
+                        "headline": "Engaging clickbaiting humourous 8-12 word headline,Appealing headline which grabs attention",
+                        "summary": "2-sentence humourous summary",
                         "category": "tech/business/international",
                         "urgency": "high/medium/low",
+                        "priority": give priority from 1 to 10,
                         "source": "source name",
                         "image_url": "original image url or empty string"
                     }}
                 ],
                 "breaking_news": [
-                    // Same structure for urgent/breaking articles only
+                    Same structure for urgent/breaking articles only
                 ]
             }}
 
@@ -99,9 +109,10 @@ class NewsHunterAgent:
             - Clear, engaging headlines
             - Factual 2-sentence summaries
             - Proper categorization
-            - Only include articles with substantial content
+            - Prioritize high-impact stories
+            - Remove duplicates
             """
-
+        # print(f"Prompt for LLM:", prompt)
         # Use smart LLM generation
         return llm_client.smart_generate(prompt, max_tokens=3000, priority="normal")
     
