@@ -82,6 +82,8 @@ class NewsHunterAgent:
         articles_text = self._format_articles_for_prompt(articles)
         
         prompt = f"""
+            You are a master headline writer for a popular news platform. Create ENGAGING, 
+            CLICKABLE headlines that make people WANT to read more.
             Analyze these {len(articles)} news articles and return a JSON response:
             Focus on: Clickbait headlines, engaging summaries, priority ranking.
             {articles_text}
@@ -90,8 +92,8 @@ class NewsHunterAgent:
             {{
                 "top_headlines": [
                     {{
-                        "headline": "Engaging clickbaiting humourous 8-12 word headline,Appealing headline which grabs attention",
-                        "summary": "2-sentence humourous summary",
+                        "headline": "Human tone like Engaging headline with clickbait elements like breaking news or exclusive",
+                        "summary": "2-3 sentence summary",
                         "category": "tech/business/international",
                         "urgency": "high/medium/low",
                         "priority": give priority from 1 to 10,
@@ -114,7 +116,7 @@ class NewsHunterAgent:
             """
         # print(f"Prompt for LLM:", prompt)
         # Use smart LLM generation
-        return llm_client.smart_generate(prompt, max_tokens=3000, priority="normal")
+        return llm_client.smart_generate(prompt, max_tokens=2000, priority="normal")
     
     def _process_breaking_news_with_llm(self, articles: List[Dict]) -> Dict[str, Any]:
         """Process breaking news with high priority LLM"""

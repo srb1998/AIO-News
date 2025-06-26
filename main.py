@@ -23,7 +23,7 @@ def test_manager_workflow():
     
     # Execute daily workflow
     result = manager.execute_daily_workflow()
-    
+    print("result is :", result)
     if result.get("success"):
         print("\n✅ WORKFLOW SUCCESSFUL!")
         print(f"📊 Workflow ID: {result['workflow_id']}")
@@ -44,10 +44,17 @@ def test_manager_workflow():
         print(f"  📰 Total Headlines: {final['total_headlines']}")
         print(f"  ⭐ Top Stories: {final['top_stories']}")
         print(f"  📊 Categories: {final['categories']}")
-        
-        # Show top 5 headlines
-        print(f"\n🔥 TOP 5 HEADLINES:")
-        for i, headline in enumerate(final["headlines"][:5], 1):
+
+        # Show breaking news
+        print(f"\n🚨 Breaking News: {len(final['breaking_news'])}")
+        for i, headline in enumerate(final["breaking_news"], 1):
+            print(f"  {i}. {headline['headline']}")
+            print(f"     🔥 Priority: {headline['priority']} | Urgency: {headline['urgency']}")
+            print(f"     📝 {headline['summary']}")
+
+        # Show top 12 headlines
+        print(f"\n🔥 TOP 12 HEADLINES:")
+        for i, headline in enumerate(final["headlines"][:12], 1):
             print(f"  {i}. {headline['headline']}")
             print(f"     📁 {headline['category']} | 🔥 Priority: {headline['priority']}")
             print(f"     📝 {headline['summary']}")
