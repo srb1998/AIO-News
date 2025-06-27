@@ -17,7 +17,7 @@ class NewsHunterAgent:
         # Fetch articles from all sources
         raw_articles = self.news_sources.fetch_all_sources()
         print(f"📡 Fetched {len(raw_articles)} articles from sources")
-        print(f"🔍 Raw Articles are {raw_articles}")
+        # print(f"🔍 Raw Articles are {raw_articles}")
         if not raw_articles:
             return {"error": "No articles found", "articles": []}
         
@@ -94,15 +94,17 @@ class NewsHunterAgent:
                     {{
                         "headline": "Human tone like Engaging headline with clickbait elements like breaking news or exclusive",
                         "summary": "2-3 sentence summary",
+                        "published" : "DD-MM-YYYY HH:MM:SS",
                         "category": "tech/business/international",
                         "urgency": "high/medium/low",
                         "priority": give priority from 1 to 10,
                         "source": "source name",
-                        "image_url": "original image url or empty string"
+                        "url": "article url",
                     }}
                 ],
                 "breaking_news": [
-                    Same structure for urgent/breaking articles only
+                    Same structure for urgent/breaking articles only,
+                    Never include Horoscope or Entertainment articles here
                 ]
             }}
 
@@ -111,10 +113,11 @@ class NewsHunterAgent:
             - Clear, engaging headlines
             - Factual 2-sentence summaries
             - Proper categorization
-            - Prioritize high-impact stories
+            - Use human tone, avoid overly formal language
+            - Prioritize urgency and importance
             - Remove duplicates
             """
-        # print(f"Prompt for LLM:", prompt)
+        print(f"Prompt for news hunter LLM:", prompt)
         # Use smart LLM generation
         return llm_client.smart_generate(prompt, max_tokens=2000, priority="normal")
     
@@ -160,8 +163,9 @@ class NewsHunterAgent:
                 Article {i}:
                 Title: {article['title']}
                 Source: {article['source']} (Reliability: {article['reliability']}/10)
+                url: {article['url']}
+                Published: {article['published']}
                 Description: {article['description'][:200]}...
-                Image: {article['image_url'] or 'None'}
                 Breaking: {'YES' if article['is_breaking'] else 'NO'}
                 """)
         

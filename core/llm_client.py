@@ -33,7 +33,7 @@ class LLMClient:
             return {
                 "content": response.text,
                 "token_usage": {
-                    "model": "gemini-2.0-flash",
+                    "model": "gemini-2.5-flash",
                     "tokens": estimated_tokens,
                     "cost": 0.0  # FREE!
                 }
