@@ -79,7 +79,7 @@ class BraveNewsClient:
     def get_world_news(self) -> List[Dict[str, Any]]:
         """Get top world news"""
         return self.search_news(
-            query="Top World News",
+            query="World",
             count=settings.BRAVE_ARTICLE_COUNT_WORLD,
             region="ALL"
         )
@@ -88,7 +88,7 @@ class BraveNewsClient:
         """Get top India news"""
         today = datetime.now().strftime("%B %d %Y")
         return self.search_news(
-            query=f"Top India news {today}",
+            query=f"India",
             count=settings.BRAVE_ARTICLE_COUNT_INDIA,
             region="IN"
         )
@@ -110,7 +110,7 @@ class BraveNewsClient:
         
         # Remove duplicates and sort by freshness
         unique_articles = self._deduplicate_articles(all_breaking)
-        return sorted(unique_articles, key=lambda x: x['published'], reverse=True)[:8]
+        return sorted(unique_articles, key=lambda x: x['published'], reverse=True)
     
     def _format_brave_articles(self, brave_results: List[Dict], query: str) -> List[Dict[str, Any]]:
         """Format Brave API results to match our article structure"""

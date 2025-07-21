@@ -1,39 +1,46 @@
-import google.generativeai as genai
+import os
+from google import genai
+from google.genai import types
 from openai import OpenAI
 from config.settings import settings
 import time
 from typing import Dict, Any
+import asyncio
 
 class LLMClient:
     def __init__(self):
-        # Configure Gemini
+        # Configure new Google GenAI SDK
         if settings.GEMINI_API_KEY:
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+            # Initialize the client with API key (same as your working test)
+            self.genai_client = genai.Client(api_key=settings.GEMINI_API_KEY)
         
         # Configure OpenAI  
         if settings.OPENAI_API_KEY:
             self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
     
     def generate_with_gemini(self, prompt: str, max_tokens: int = 1000) -> Dict[str, Any]:
-        """Generate text using Gemini (FREE!)"""
-        print("🔄 Generating with Gemini...")
+        """Generate text using Gemini """
+
         try:
-            response = self.gemini_model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
+            response = self.genai_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt,
+                config=types.GenerateContentConfig(
                     max_output_tokens=max_tokens,
-                    temperature=0.7,
+                    temperature=1.0
                 )
             )
             
+            # Extract text from response
+            text_content = response.text if hasattr(response, 'text') else str(response)
+            
             # Estimate token usage (Gemini doesn't provide exact count)
-            estimated_tokens = len(prompt.split()) + len(response.text.split())
+            estimated_tokens = len(prompt.split()) + len(text_content.split())
             
             return {
-                "content": response.text,
+                "content": text_content,
                 "token_usage": {
-                    "model": "gemini-2.5-flash",
+                    "model": "gemini-2.0-flash",
                     "tokens": estimated_tokens,
                     "cost": 0.0  # FREE!
                 }
@@ -84,6 +91,33 @@ class LLMClient:
         # Fallback to OpenAI if Gemini fails
         print("🔄 Gemini failed, trying OpenAI...")
         return self.generate_with_openai(prompt, max_tokens)
+
+    async def generate_image(self, prompt: str) -> bytes:
+        """
+        Use Gemini 2.0-Flash to generate an image.
+        Returns image bytes or empty bytes on failure.
+        """
+        try:
+            # Use the exact same approach as your working test
+            response = self.genai_client.models.generate_content(
+                model="gemini-2.0-flash-preview-image-generation",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_modalities=['TEXT', 'IMAGE']
+                )
+            )
+            
+            # Extract inline_data (same logic as your working test)
+            for part in response.candidates[0].content.parts:
+                if part.inline_data:
+                    return part.inline_data.data
+            
+            print("❌ No image data found in Gemini response")
+            return b""
+            
+        except Exception as e:
+            print(f"❌ Gemini image generation error: {e}")
+            return b""
 
 # Global LLM client
 llm_client = LLMClient()

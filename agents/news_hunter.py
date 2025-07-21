@@ -25,7 +25,7 @@ class NewsHunterAgent:
         
         # Limit articles to save tokens
         limited_articles = raw_articles[:max_articles]
-        
+        print(f"Limited articles: {limited_articles}")
         # Process articles with LLM
         processed_result = self._process_articles_with_llm(limited_articles)
         # print(f"Processed result from LLM: {processed_result}")
@@ -88,11 +88,11 @@ class NewsHunterAgent:
             Focus on: Clickbait headlines, engaging summaries, priority ranking.
             {articles_text}
 
-            Return only the JSON object with this structure:
+            Return only the JSON object with this structure and dont make any error like forgetting comma or double quotes:
             {{
                 "top_headlines": [
                     {{
-                        "headline": "Human tone like Engaging headline with clickbait elements like breaking news or exclusive",
+                        "headline": "Engaging headline which can concisely summarize the article",
                         "summary": "2-3 sentence summary",
                         "published" : "DD-MM-YYYY HH:MM:SS",
                         "category": "tech/business/international",
@@ -103,8 +103,7 @@ class NewsHunterAgent:
                     }}
                 ],
                 "breaking_news": [
-                    Same structure for urgent/breaking articles only,
-                    Never include Horoscope or Entertainment articles here
+                    Same structure for urgent/breaking articles only
                 ]
             }}
 
@@ -116,10 +115,11 @@ class NewsHunterAgent:
             - Use human tone, avoid overly formal language
             - Prioritize urgency and importance
             - Remove duplicates
+            - Don't include articles with Horoscope
             """
         print(f"Prompt for news hunter LLM:", prompt)
         # Use smart LLM generation
-        return llm_client.smart_generate(prompt, max_tokens=2000, priority="normal")
+        return llm_client.smart_generate(prompt, max_tokens=6000, priority="normal")
     
     def _process_breaking_news_with_llm(self, articles: List[Dict]) -> Dict[str, Any]:
         """Process breaking news with high priority LLM"""

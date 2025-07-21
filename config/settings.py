@@ -1,3 +1,5 @@
+# FILE: config/settings.py (Updated with minor fixes and Phase 2 preparation)
+
 import os
 from dotenv import load_dotenv
 from typing import List
@@ -5,8 +7,10 @@ from typing import List
 load_dotenv()
 
 class Settings:
-    # API Keys
     def __init__(self):
+        # Create output directory if it doesn't exist
+        os.makedirs("data/outputs/workflow", exist_ok=True)  # Ensure output directory exists
+        
         # API Keys
         self.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -20,13 +24,13 @@ class Settings:
         self.COST_PER_1K_TOKENS_OPENAI = float(os.getenv("COST_PER_1K_TOKENS_OPENAI", 0.00015))
         
         # Brave Search Configuration
-        self.BRAVE_ARTICLE_COUNT_WORLD = int(os.getenv("BRAVE_ARTICLE_COUNT_WORLD", 10))
-        self.BRAVE_ARTICLE_COUNT_INDIA = int(os.getenv("BRAVE_ARTICLE_COUNT_INDIA", 8))
+        self.BRAVE_ARTICLE_COUNT_WORLD = int(os.getenv("BRAVE_ARTICLE_COUNT_WORLD", 0))
+        self.BRAVE_ARTICLE_COUNT_INDIA = int(os.getenv("BRAVE_ARTICLE_COUNT_INDIA", 0))
         self.BRAVE_CACHE_DURATION = int(os.getenv("BRAVE_CACHE_DURATION", 20))  # minutes
         
         # News Priority Settings
-        self.WORLD_NEWS_PRIORITY = float(os.getenv("WORLD_NEWS_PRIORITY", 0.7))
-        self.INDIA_NEWS_PRIORITY = float(os.getenv("INDIA_NEWS_PRIORITY", 0.3))
+        self.WORLD_NEWS_PRIORITY = float(os.getenv("WORLD_NEWS_PRIORITY", 0.5))
+        self.INDIA_NEWS_PRIORITY = float(os.getenv("INDIA_NEWS_PRIORITY", 0.5))
         self.BREAKING_NEWS_BOOST = float(os.getenv("BREAKING_NEWS_BOOST", 2.0))
         
         # Scheduling Configuration
@@ -64,5 +68,40 @@ class Settings:
                 "reliability": 9
             }
         ]
+
+        # Service Configuration
+        self.SERVICE_CONFIG = {
+            "workflow_interval_hours": 6,
+            "max_workflow_history": 24,
+            "service_heartbeat_seconds": 60,
+            "auto_save_results": True,
+            "results_directory": "data/outputs",
+            "service_log_level": "INFO",
+            "telegram_chat_id": os.getenv("TELEGRAM_CHAT_ID", "YOUR_CHAT_ID")
+        }
+
+        # Workflow Timing
+        self.WORKFLOW_TIMING = {
+            "daily_workflow_interval": 6 * 60 * 60,  # 6 hours in seconds
+            "breaking_news_check_interval": 30 * 60,  # 30 minutes for breaking news
+            "service_status_check_interval": 5 * 60,  # 5 minutes for status updates
+        }
+
+        # Telegram Configuration (for Phase 2)
+        self.TELEGRAM_CONFIG = {
+            "polling_interval_seconds": 2,
+            "approval_timeout_minutes": 30,
+            "approval_storage_path": "data/approvals/",
+            "images_storage_path": "data/outputs/images/",
+            "videos_storage_path": "data/outputs/videos/",
+            "max_retries": 5,
+            "retry_delay_seconds": 5
+        }
+        self.WEB_UPLOADER_BASE_URL = "https://media-web-uploader.vercel.app/" # The URL of your index.html
+
+        # Create approval storage directory for Phase 2
+        os.makedirs(self.TELEGRAM_CONFIG["approval_storage_path"], exist_ok=True)
+        os.makedirs(self.TELEGRAM_CONFIG["images_storage_path"], exist_ok=True)
+        os.makedirs(self.TELEGRAM_CONFIG["videos_storage_path"], exist_ok=True)
 
 settings = Settings()

@@ -1,5 +1,5 @@
 import requests
-from bs4 import BeautifulSoup
+# from bs4 import BeautifulSoup
 import time
 import json
 import re
@@ -117,11 +117,11 @@ class DetectiveAgent:
             response = self.session.get(url, timeout=10)
             response.raise_for_status()
             
-            soup = BeautifulSoup(response.content, 'html.parser')
+            # soup = BeautifulSoup(response.content, 'html.parser')
             
             # Remove unwanted elements
-            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
-                element.decompose()
+            # for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
+            #     element.decompose()
             
             # Extract main content
             content_selectors = [
@@ -130,16 +130,16 @@ class DetectiveAgent:
             ]
             
             main_content = ""
-            for selector in content_selectors:
-                content_elem = soup.select_one(selector)
-                if content_elem:
-                    main_content = content_elem.get_text(strip=True)
-                    break
+            # for selector in content_selectors:
+            #     content_elem = soup.select_one(selector)
+            #     if content_elem:
+            #         main_content = content_elem.get_text(strip=True)
+            #         break
             
-            if not main_content:
-                # Fallback: get all paragraph text
-                paragraphs = soup.find_all('p')
-                main_content = ' '.join([p.get_text(strip=True) for p in paragraphs])
+            # if not main_content:
+            #     # Fallback: get all paragraph text
+            #     paragraphs = soup.find_all('p')
+            #     main_content = ' '.join([p.get_text(strip=True) for p in paragraphs])
             
             # Extract quotes (text in quotes)
             quotes = re.findall(r'"([^"]*)"', main_content)
@@ -250,7 +250,7 @@ class DetectiveAgent:
         """
         print(f"📝 Prompt for Detective LLM:\n{prompt}")
         # Use smart LLM generation (Gemini first, OpenAI fallback)
-        return llm_client.smart_generate(prompt, max_tokens=3000, priority="normal")
+        return llm_client.smart_generate(prompt, max_tokens=6000, priority="normal")
     
     def _format_research_for_prompt(self, research_data: List[Dict[str, Any]]) -> str:
         """

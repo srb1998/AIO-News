@@ -1,71 +1,574 @@
 {
-  "2025-06-18": {
+  "2025-06-28": {
     "NewsHunter": {
-      "total_tokens": 988,
+      "total_tokens": 3206,
       "total_cost": 0.0,
-      "calls": 1,
+      "calls": 4,
       "models_used": {
         "gemini-2.0-flash": {
-          "tokens": 988,
+          "tokens": 3206,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 5782,
+      "total_cost": 0.0,
+      "calls": 4,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 5782,
           "cost": 0.0
         }
       }
     }
   },
-  "2025-06-19": {
+  "2025-06-29": {
     "NewsHunter": {
-      "total_tokens": 1635,
+      "total_tokens": 8355,
+      "total_cost": 0.0,
+      "calls": 6,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 8355,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 5105,
+      "total_cost": 0.0,
+      "calls": 5,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 5105,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-06-30": {
+    "NewsHunter": {
+      "total_tokens": 7960,
+      "total_cost": 0.0,
+      "calls": 6,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 7960,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 3064,
+      "total_cost": 0.0,
+      "calls": 3,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 3064,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-01": {
+    "NewsHunter": {
+      "total_tokens": 2977,
       "total_cost": 0.0,
       "calls": 2,
       "models_used": {
         "gemini-2.0-flash": {
-          "tokens": 1635,
+          "tokens": 2977,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 1408,
+      "total_cost": 0.0,
+      "calls": 1,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1408,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-02": {
+    "NewsHunter": {
+      "total_tokens": 2629,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 2629,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 2488,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 2488,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-03": {
+    "NewsHunter": {
+      "total_tokens": 2269,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 2269,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 2764,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 2764,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-04": {
+    "NewsHunter": {
+      "total_tokens": 2667,
+      "total_cost": 0.0,
+      "calls": 3,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 2667,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 3992,
+      "total_cost": 0.0,
+      "calls": 3,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 3992,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-05": {
+    "NewsHunter": {
+      "total_tokens": 5874,
+      "total_cost": 0.0,
+      "calls": 11,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 5874,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 8609,
+      "total_cost": 0.0,
+      "calls": 7,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 8609,
           "cost": 0.0
         }
       }
     },
     "NewsHunter-Breaking": {
-      "total_tokens": 652,
-      "total_cost": 9.779999999999999e-05,
-      "calls": 2,
+      "total_tokens": 170,
+      "total_cost": 0.0,
+      "calls": 1,
       "models_used": {
-        "gpt-4o-mini": {
-          "tokens": 652,
-          "cost": 9.779999999999999e-05
+        "gemini-2.0-flash": {
+          "tokens": 170,
+          "cost": 0.0
         }
       }
     }
   },
-  "2025-06-22": {
+  "2025-07-06": {
     "NewsHunter": {
-      "total_tokens": 7511,
+      "total_tokens": 16842,
+      "total_cost": 0.0,
+      "calls": 16,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 16842,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 8780,
+      "total_cost": 0.0,
+      "calls": 11,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 8780,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-07": {
+    "NewsHunter": {
+      "total_tokens": 14192,
+      "total_cost": 0.0,
+      "calls": 11,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 14192,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 9342,
+      "total_cost": 0.0001311,
+      "calls": 9,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 8468,
+          "cost": 0.0
+        },
+        "gpt-4o-mini": {
+          "tokens": 874,
+          "cost": 0.0001311
+        }
+      }
+    }
+  },
+  "2025-07-08": {
+    "NewsHunter": {
+      "total_tokens": 20116,
+      "total_cost": 0.0,
+      "calls": 18,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 20116,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 8734,
       "total_cost": 0.0,
       "calls": 8,
       "models_used": {
         "gemini-2.0-flash": {
-          "tokens": 7511,
+          "tokens": 8734,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-09": {
+    "NewsHunter": {
+      "total_tokens": 1346,
+      "total_cost": 0.0,
+      "calls": 1,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1346,
           "cost": 0.0
         }
       }
     },
-    "HeadlineWizard-LLM": {
-      "total_tokens": 852,
+    "Detective": {
+      "total_tokens": 1046,
       "total_cost": 0.0,
-      "calls": 2,
+      "calls": 1,
       "models_used": {
         "gemini-2.0-flash": {
-          "tokens": 852,
+          "tokens": 1046,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-10": {
+    "NewsHunter": {
+      "total_tokens": 1235,
+      "total_cost": 0.0,
+      "calls": 1,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1235,
           "cost": 0.0
         }
       }
     },
-    "HeadlineWizard": {
-      "total_tokens": 852,
+    "Detective": {
+      "total_tokens": 1007,
+      "total_cost": 0.0,
+      "calls": 1,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1007,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-11": {
+    "NewsHunter": {
+      "total_tokens": 2810,
       "total_cost": 0.0,
       "calls": 2,
       "models_used": {
         "gemini-2.0-flash": {
-          "tokens": 852,
+          "tokens": 2810,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 2300,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 2300,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-13": {
+    "NewsHunter": {
+      "total_tokens": 1199,
+      "total_cost": 0.0,
+      "calls": 1,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1199,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 1374,
+      "total_cost": 0.0,
+      "calls": 1,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1374,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-15": {
+    "NewsHunter": {
+      "total_tokens": 1416,
+      "total_cost": 0.0,
+      "calls": 1,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1416,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 1244,
+      "total_cost": 0.0,
+      "calls": 1,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1244,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-16": {
+    "NewsHunter": {
+      "total_tokens": 6911,
+      "total_cost": 0.0,
+      "calls": 5,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 6911,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 5576,
+      "total_cost": 0.0,
+      "calls": 5,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 5576,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-17": {
+    "NewsHunter": {
+      "total_tokens": 6829,
+      "total_cost": 0.0,
+      "calls": 7,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 6829,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 7359,
+      "total_cost": 0.0,
+      "calls": 7,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 7359,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-18": {
+    "NewsHunter": {
+      "total_tokens": 4158,
+      "total_cost": 0.0003312,
+      "calls": 6,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 1950,
+          "cost": 0.0
+        },
+        "gpt-4o-mini": {
+          "tokens": 2208,
+          "cost": 0.0003312
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 7846,
+      "total_cost": 0.0005272499999999999,
+      "calls": 6,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 4331,
+          "cost": 0.0
+        },
+        "gpt-4o-mini": {
+          "tokens": 3515,
+          "cost": 0.0005272499999999999
+        }
+      }
+    }
+  },
+  "2025-07-19": {
+    "NewsHunter": {
+      "total_tokens": 8595,
+      "total_cost": 0.0012892499999999998,
+      "calls": 4,
+      "models_used": {
+        "gpt-4o-mini": {
+          "tokens": 8595,
+          "cost": 0.0012892499999999998
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 3366,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 3366,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-20": {
+    "NewsHunter": {
+      "total_tokens": 5559,
+      "total_cost": 0.0008338499999999998,
+      "calls": 3,
+      "models_used": {
+        "gpt-4o-mini": {
+          "tokens": 5559,
+          "cost": 0.0008338499999999998
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 2190,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 2190,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-21": {
+    "NewsHunter": {
+      "total_tokens": 3264,
+      "total_cost": 0.0004896,
+      "calls": 2,
+      "models_used": {
+        "gpt-4o-mini": {
+          "tokens": 3264,
+          "cost": 0.0004896
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 3231,
+      "total_cost": 0.0,
+      "calls": 2,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 3231,
+          "cost": 0.0
+        }
+      }
+    }
+  },
+  "2025-07-22": {
+    "NewsHunter": {
+      "total_tokens": 2412,
+      "total_cost": 0.0,
+      "calls": 3,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 2412,
+          "cost": 0.0
+        }
+      }
+    },
+    "Detective": {
+      "total_tokens": 5127,
+      "total_cost": 0.0,
+      "calls": 3,
+      "models_used": {
+        "gemini-2.0-flash": {
+          "tokens": 5127,
           "cost": 0.0
         }
       }
