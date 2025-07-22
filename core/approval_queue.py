@@ -70,8 +70,7 @@ class ApprovalQueue:
             except Exception as e:
                 print(f"❌ Failed to update {media_type} for {story_id}_{platform}: {e}")
                 return None
-    
-    # ... (other methods like get_request, get_timed_out_requests, etc. remain the same)
+
     def get_request(self, story_id: str, platform: str) -> Optional[Dict]:
         file_path = os.path.join(self.storage_path, f"{story_id}_{platform}.json")
         if not os.path.exists(file_path): return None
@@ -82,7 +81,36 @@ class ApprovalQueue:
                 print(f"❌ Failed to load approval request for {story_id}_{platform}: {e}")
                 return None
 
+    def get_next_approved_post(self) -> Optional[Dict]:
+        """
+        Finds all APPROVED posts and returns the one that was created earliest.
+        This ensures posts are published in the order they were generated.
+        """
+        approved_posts = []
+        for filename in os.listdir(self.storage_path):
+            if not filename.endswith(".json"):
+                continue
+            
+            file_path = os.path.join(self.storage_path, filename)
+            with FileLock(f"{file_path}.lock"):
+                try:
+                    with open(file_path, 'r') as f:
+                        request = json.load(f)
+                    if request.get("status") == "APPROVED":
+                        approved_posts.append(request)
+                except Exception as e:
+                    print(f"❌ Failed to load approved request {filename}: {e}")
+
+        if not approved_posts:
+            return None
+
+        # Sort by the 'created_at' timestamp to find the oldest approved post
+        approved_posts.sort(key=lambda x: datetime.fromisoformat(x['created_at']))
+        return approved_posts[0]
+
+
     def get_timed_out_requests(self) -> List[Dict]:
+        """Return requests that have timed out."""
         timed_out = []
         current_time = datetime.now()
         for filename in os.listdir(self.storage_path):
@@ -92,7 +120,8 @@ class ApprovalQueue:
                     try:
                         with open(file_path, 'r') as f:
                             request = json.load(f)
-                        if request["status"] == "PENDING" and current_time >= datetime.fromisoformat(request["timeout_at"]):
+                        timeout_at = datetime.fromisoformat(request["timeout_at"])
+                        if request["status"] == "PENDING" and current_time >= timeout_at:
                             timed_out.append(request)
                     except Exception as e:
                         print(f"❌ Failed to check timeout for {filename}: {e}")

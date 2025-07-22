@@ -85,6 +85,9 @@ class Settings:
             "daily_workflow_interval": 6 * 60 * 60,  # 6 hours in seconds
             "breaking_news_check_interval": 30 * 60,  # 30 minutes for breaking news
             "service_status_check_interval": 5 * 60,  # 5 minutes for status updates
+            "posting_scheduler_interval_seconds": 2 * 60, # Check for approved posts every 2 minutes
+            "min_posting_delay_seconds": 10 * 60, # Minimum 10 minutes between posts
+            "max_posting_delay_seconds": 25 * 60
         }
 
         # Telegram Configuration (for Phase 2)

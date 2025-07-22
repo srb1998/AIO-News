@@ -98,28 +98,45 @@ class SocialMediaManagerAgent:
             "pending_approvals": len(self.platforms), "telegram_sent": bool(message_ids)
         }
 
-    async def handle_telegram_callback(self, story_id: str, platform: Optional[str], action: str, media_files: List[Dict] = None):
-        """Handle all callbacks from Telegram, including new media batches."""
-        platforms_to_process = self.platforms if action in ["approve_all", "decline_all"] else [platform]
+    async def handle_telegram_callback(self, story_id: str, platform: Optional[str], action: str):
+        """
+        Handles approve/reject actions.
+        On approval, it now sets the status to 'APPROVED' for the scheduler to pick up.
+        It no longer calls the posting function directly.
+        """
+        print(f"Handling callback: story_id='{story_id}', platform='{platform}', action='{action}'")
+
+        if action in ["approve_all", "decline_all"]:
+            platforms_to_process = self.platforms
+        elif platform:
+            platforms_to_process = [platform]
+        else:
+            print(f"⚠️ Could not determine platforms for action '{action}'. Aborting.")
+            return
 
         for p in platforms_to_process:
-            if not p: continue
             request = self.approval_queue.get_request(story_id, p)
             if not request or request["status"] != "PENDING":
-                print(f"⚠️ Request for {story_id}/{p} not found or not pending. Ignoring action '{action}'.")
+                print(f"⚠️ Request for {story_id}/{p} not found or not pending. Ignoring action.")
                 continue
 
-            if action == "add_media_batch" and media_files:
-                print(f"🎞️ Received {len(media_files)} media files for {story_id}/{p}.")
-                for media_info in media_files:
-                    await self._handle_media_add(story_id, p, media_info)
-            elif action.startswith("approve"):
-                await self._handle_approval(story_id, p)
-            elif action.startswith("reject") or action.startswith("decline"):
+            if action.startswith("approve"):
+                # 1. Update status to APPROVED
+                self.approval_queue.update_status(story_id, p, "APPROVED")
+                
+                # 2. Notify user that it's scheduled, not posted
+                msg_id = request["message_ids"].get(p)
+                if msg_id:
+                    text = self.telegram_bot._escape_markdown(f"✅ Approved & **scheduled** for posting to {p.capitalize()}!")
+                    await self.telegram_bot.update_message(self.chat_id, msg_id, text, {"inline_keyboard": []})
+                print(f"✅ Story {story_id}/{p} marked as APPROVED and is now in the posting queue.")
+
+            elif action.startswith("decline") or action.startswith("reject"):
                 self.approval_queue.update_status(story_id, p, "REJECTED")
-                text = self.telegram_bot._escape_markdown(f"❌ Rejected {p.capitalize()} (Story {story_id})")
-                msg_id = request["message_ids"].get(p) or request["message_ids"].get("story")
-                await self.telegram_bot.update_message(self.chat_id, msg_id, text, {"inline_keyboard": []})
+                msg_id = request["message_ids"].get(p)
+                if msg_id:
+                    text = self.telegram_bot._escape_markdown(f"❌ Rejected {p.capitalize()} (Story {story_id})")
+                    await self.telegram_bot.update_message(self.chat_id, msg_id, text, {"inline_keyboard": []})
 
     async def _handle_media_add(self, story_id: str, platform: str, media_info: Dict):
         """Process a single uploaded file: apply headline or upload directly."""
