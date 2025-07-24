@@ -4,49 +4,70 @@ from core.llm_client import llm_client
 from core.news_sources import NewsSourceManager
 from typing import List, Dict, Any
 import json
+from core.story_cache import StoryCache
 
 class NewsHunterAgent:
     def __init__(self):
         self.news_sources = NewsSourceManager()
+        self.story_cache = StoryCache()
     
     @track_tokens("NewsHunter")
-    def hunt_daily_news(self, max_articles: int = 15) -> Dict[str, Any]:
+    def hunt_daily_news(self, max_articles: int = 25) -> Dict[str, Any]:
         """Hunt for daily news articles and make engaging headlines"""
         print("🕵️ News Hunter Agent: Starting daily news hunt...")
         
+        # Prune old stories from the cache before starting
+        self.story_cache.prune_cache()
+
         # Fetch articles from all sources
         raw_articles = self.news_sources.fetch_all_sources()
         print(f"📡 Fetched {len(raw_articles)} articles from sources")
         # print(f"🔍 Raw Articles are {raw_articles}")
-        if not raw_articles:
-            return {"error": "No articles found", "articles": []}
+
+        unseen_articles = []
+        for article in raw_articles:
+            # Use a combination of title and source to create a unique key
+            cache_key = f"{article['title']}_{article['source']}"
+            if not self.story_cache.has_story(cache_key):
+                unseen_articles.append(article)
+            else:
+                print(f"CACHE HIT: Skipping already processed story '{article['title'][:50]}...'")
         
-        print(f"📊 Found {len(raw_articles)} raw articles")
-        
+        print(f"📰 Found {len(unseen_articles)} new, unseen articles.")
+        if not unseen_articles:
+            return {"success": True, "message": "No new articles to process.", "top_headlines": []}
+
+        print(f"📊 Found {len(unseen_articles)} unseen articles")
+
         # Limit articles to save tokens
-        limited_articles = raw_articles[:max_articles]
+        limited_articles = unseen_articles[:max_articles]
         print(f"Limited articles: {limited_articles}")
-        # Process articles with LLM
+
         processed_result = self._process_articles_with_llm(limited_articles)
         # print(f"Processed result from LLM: {processed_result}")
         if "error" in processed_result:
             return processed_result
         
         content = processed_result.get("content", "")
-        cleaned = re.sub(r"^```json|```$", "", content.strip()).strip()
-        structured = json.loads(cleaned) if cleaned else {}
+        try:
+            cleaned = re.sub(r"^```json|```$", "", content.strip()).strip()
+            structured = json.loads(cleaned) if cleaned else {}
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON parsing failed in NewsHunter: {e}")
+            return {"success": False, "error": "LLM returned invalid JSON."}
+        
         headlines = structured.get("top_headlines", [])
-        headlines.sort(key=lambda x: x.get("priority", 0), reverse=True)
-        breaking_news = structured.get("breaking_news", [])
-        breaking_news.sort(key=lambda x: x.get("priority", 0), reverse=True)
+        
+        for headline_data in headlines:
+            cache_key = f"{headline_data.get('original_title')}_{headline_data.get('source')}"
+            self.story_cache.add_story(cache_key)
 
+        headlines.sort(key=lambda x: x.get("priority", 0), reverse=True)
         return {
             "success": True,
             "articles_processed": len(limited_articles),
             "top_headlines": headlines,
-            "breaking_news": breaking_news,
             "token_usage": processed_result["token_usage"],
-            "breaking_news_count": len([a for a in limited_articles if a['is_breaking']])
         }
     
     @track_tokens("NewsHunter-Breaking")
@@ -82,44 +103,48 @@ class NewsHunterAgent:
         articles_text = self._format_articles_for_prompt(articles)
         
         prompt = f"""
-            You are a master headline writer for a popular news platform. Create ENGAGING, 
-            CLICKABLE headlines that make people WANT to read more.
-            Analyze these {len(articles)} news articles and return a JSON response:
-            Focus on: Clickbait headlines, engaging summaries, priority ranking.
-            {articles_text}
+            You are the lead editor for 'ViralFeed', a digital news outlet famous for its edgy, highly-engaging, and easy-to-understand content for a young, internet-savvy audience. 
+            Your goal is to get clicks, but NEVER at the expense of clarity. 
+            The reader must understand the core of the story from the headline alone.
 
+            **Your Style Guide:**
+            1.  **Clarity First, Clickbait Second:** The headline MUST provide enough context for the reader to understand what the story is about. It should be intriguing, not confusing.
+            2.  **Simple, Powerful Language:** Use everyday English. Avoid jargon.
+            3.  **Inject Emotion & Conflict:** Frame stories around human elements: conflict, surprise, outrage, humor, or shock.
+            4.  **The "Why" Factor:** Your summary must answer "Why should I care?" in 1-2 punchy sentences.
+
+            **Crucial Example of What to Do (and Not Do):**
+            - **Original Boring Headline:** "Air India Express operations affected as crew members report sick"
+            - **BAD Viral Headline:** "Air India Pilots Are SCARED? Mass Sick Calls After HORRIFIC Crash!" (This is too vague, lacks context about the *consequence*.)
+            - **GOOD Viral Headline:** "Mass 'Sick-Out' at Air India GROUNDS 80+ Flights After Crash - What's Really Happening?" (This is perfect. It has emotion, context (flights grounded), and a question to drive engagement.)
+
+            Your Task:
+            Analyze these {len(articles)} news articles and return a JSON response:
+            {articles_text}
+            - The `headline` should be your new, viral-style headline.
+            - The `summary` should be a short, punchy, 1-2 sentence explanation in the same style.
+            - The `priority` score (1-10) must be based on VIRAL POTENTIAL and importance. A story about a celebrity feud or a shocking local event is a 10
+            - The `category` should be simple: 'Tech', 'Entertainment', 'World News', 'Finance', 'Oddly Specific'.
+            - Add an `original_title` field to store the article's original title for caching.
             Return only the JSON object with this structure and dont make any error like forgetting comma or double quotes:
             {{
                 "top_headlines": [
                     {{
-                        "headline": "Engaging headline which can concisely summarize the article",
-                        "summary": "2-3 sentence summary",
-                        "published" : "DD-MM-YYYY HH:MM:SS",
-                        "category": "tech/business/international",
-                        "urgency": "high/medium/low",
+                        "headline": "Your new viral headline here.",
+                        "summary": "Your punchy, simple summary.",
                         "priority": give priority from 1 to 10,
+                        "published" : "DD-MM-YYYY HH:MM:SS",
+                        "category": "Entertainment",
+                        "original_title": "Original Title from Article",
                         "source": "source name",
                         "url": "article url",
                     }}
-                ],
-                "breaking_news": [
-                    Same structure for urgent/breaking articles only
                 ]
             }}
-
-            Focus on:
-            - International news, tech, and business
-            - Clear, engaging headlines
-            - Factual 2-sentence summaries
-            - Proper categorization
-            - Use human tone, avoid overly formal language
-            - Prioritize urgency and importance
-            - Remove duplicates
-            - Don't include articles with Horoscope
             """
         print(f"Prompt for news hunter LLM:", prompt)
         # Use smart LLM generation
-        return llm_client.smart_generate(prompt, max_tokens=6000, priority="normal")
+        return llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
     
     def _process_breaking_news_with_llm(self, articles: List[Dict]) -> Dict[str, Any]:
         """Process breaking news with high priority LLM"""
@@ -161,12 +186,11 @@ class NewsHunterAgent:
         for i, article in enumerate(articles, 1):
             formatted.append(f"""
                 Article {i}:
-                Title: {article['title']}
+                Original Title: {article['title']}
                 Source: {article['source']} (Reliability: {article['reliability']}/10)
                 url: {article['url']}
                 Published: {article['published']}
-                Description: {article['description'][:200]}...
-                Breaking: {'YES' if article['is_breaking'] else 'NO'}
+                Description: {article['description'][:250]}...
                 """)
         
         return "\n".join(formatted)

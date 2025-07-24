@@ -63,7 +63,7 @@ class NewsAgencyService:
             server.serve(),
             self.telegram_bot.start_polling(),
             self._daily_workflow_loop(),
-            self._breaking_news_loop(),
+            # self._breaking_news_loop(),
             self._posting_scheduler_loop(),
             self._check_timeouts_loop()
         ]
@@ -141,10 +141,25 @@ class NewsAgencyService:
             await asyncio.sleep(self.timeout_check_interval)
 
     def _setup_signal_handlers(self):
-        """Sets up handlers for graceful shutdown on SIGINT and SIGTERM."""
-        loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(self._shutdown(s)))
+        """
+        Sets up handlers for graceful shutdown. This method is platform-aware
+        and handles the differences between Windows and Unix-like systems.
+        """
+        if sys.platform == "win32":
+            # On Windows, signal handlers are more limited. We handle Ctrl+C
+            # directly in the main run_service function's exception block.
+            print("Running on Windows. Use Ctrl+C to exit.")
+            return
+
+        # For Linux/macOS, we use the more robust signal handling.
+        try:
+            loop = asyncio.get_running_loop()
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(self._shutdown(s)))
+        except NotImplementedError:
+            # This is a fallback for environments where signal handlers are not supported
+            # even if the OS is not Windows (e.g., some container environments).
+            print("⚠️ Signal handlers not supported in this environment. Use Ctrl+C to exit.")
 
     async def _shutdown(self, sig: signal.Signals):
         """Gracefully shuts down all running background tasks."""
@@ -169,10 +184,23 @@ class NewsAgencyService:
 def run_service():
     """Main entry point to run the service."""
     service = NewsAgencyService()
+    loop = asyncio.get_event_loop()
     try:
-        asyncio.run(service.start_service())
-    except (KeyboardInterrupt, SystemExit):
-        print("\n👋 Service stopped by user or system.")
+        # We start the service and let it run forever.
+        loop.run_until_complete(service.start_service())
+    except KeyboardInterrupt:
+        # This is the primary way to stop the service on Windows.
+        print("\n👋 Service stopped by user (Ctrl+C).")
+    finally:
+        # Ensure a clean shutdown of any remaining tasks.
+        tasks = asyncio.all_tasks(loop=loop)
+        for task in tasks:
+            task.cancel()
+        
+        # Gather cancelled tasks to allow them to finish their cancellation.
+        group = asyncio.gather(*tasks, return_exceptions=True)
+        loop.run_until_complete(group)
+        loop.close()
 
 if __name__ == "__main__":
     # Ensure the 'data/outputs' directory exists for logging workflow results

@@ -23,7 +23,7 @@ class NewsSourceManager:
             feed = feedparser.parse(source['url'])
             
             articles = []
-            for entry in feed.entries[:3]:  # Limit to 8 articles per source
+            for entry in feed.entries[:3]:  # Limit to 3 articles per source
 
                 # Extract image URL
                 image_url = self._extract_image_from_entry(entry)
@@ -44,7 +44,7 @@ class NewsSourceManager:
                     "image_url": image_url,
                     "is_breaking": self._is_breaking_news(entry.title + " " + getattr(entry, 'description', '')),
                     "source_type": "rss",
-                    "priority_boost": 1.0  # Default priority for RSS
+                    "priority_boost": 0.8  # Default priority for RSS
                 }
                 articles.append(article)
             

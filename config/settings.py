@@ -24,13 +24,13 @@ class Settings:
         self.COST_PER_1K_TOKENS_OPENAI = float(os.getenv("COST_PER_1K_TOKENS_OPENAI", 0.00015))
         
         # Brave Search Configuration
-        self.BRAVE_ARTICLE_COUNT_WORLD = int(os.getenv("BRAVE_ARTICLE_COUNT_WORLD", 0))
-        self.BRAVE_ARTICLE_COUNT_INDIA = int(os.getenv("BRAVE_ARTICLE_COUNT_INDIA", 0))
+        self.BRAVE_ARTICLE_COUNT_WORLD = int(os.getenv("BRAVE_ARTICLE_COUNT_WORLD", 3))
+        self.BRAVE_ARTICLE_COUNT_INDIA = int(os.getenv("BRAVE_ARTICLE_COUNT_INDIA", 5))
         self.BRAVE_CACHE_DURATION = int(os.getenv("BRAVE_CACHE_DURATION", 20))  # minutes
         
         # News Priority Settings
-        self.WORLD_NEWS_PRIORITY = float(os.getenv("WORLD_NEWS_PRIORITY", 0.5))
-        self.INDIA_NEWS_PRIORITY = float(os.getenv("INDIA_NEWS_PRIORITY", 0.5))
+        self.WORLD_NEWS_PRIORITY = float(os.getenv("WORLD_NEWS_PRIORITY", 0.2))
+        self.INDIA_NEWS_PRIORITY = float(os.getenv("INDIA_NEWS_PRIORITY", 0.8))
         self.BREAKING_NEWS_BOOST = float(os.getenv("BREAKING_NEWS_BOOST", 2.0))
         
         # Scheduling Configuration

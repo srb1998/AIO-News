@@ -223,7 +223,7 @@ class ManagerAgent:
             if posting_mode == "hitl":
                 print(f"⏳ Awaiting approval for {social_media_result.get('posts_pending', 0)} posts via Telegram")
             print(f"💰 Total cost: ${total_cost:.4f} ({total_tokens} tokens)")
-
+            print(f"📈 Workflow Result: {json.dumps(workflow_result, indent=2)}")
             return workflow_result
 
         except Exception as e:

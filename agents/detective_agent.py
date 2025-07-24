@@ -25,7 +25,7 @@ class DetectiveAgent:
         print(f"🕵️ Detective Agent: Starting investigation of {len(top_headlines)} stories...")
         
         # Filter and sort by priority
-        priority_stories = [h for h in top_headlines if h.get("priority", 0) >= 7]
+        priority_stories = [h for h in top_headlines if h.get("priority", 0) >= 8]
         priority_stories.sort(key=lambda x: x.get("priority", 0), reverse=True)
         stories_to_investigate = priority_stories[:max_stories]
         
@@ -250,7 +250,7 @@ class DetectiveAgent:
         """
         print(f"📝 Prompt for Detective LLM:\n{prompt}")
         # Use smart LLM generation (Gemini first, OpenAI fallback)
-        return llm_client.smart_generate(prompt, max_tokens=6000, priority="normal")
+        return llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
     
     def _format_research_for_prompt(self, research_data: List[Dict[str, Any]]) -> str:
         """
