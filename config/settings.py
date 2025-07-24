@@ -82,7 +82,7 @@ class Settings:
 
         # Workflow Timing
         self.WORKFLOW_TIMING = {
-            "daily_workflow_interval": 1 * 60 * 60,  # 6 hours in seconds
+            "daily_workflow_interval": 3 * 60 * 60,  # 3 hours in seconds
             "breaking_news_check_interval": 30 * 60,  # 30 minutes for breaking news
             "service_status_check_interval": 5 * 60,  # 5 minutes for status updates
             "posting_scheduler_interval_seconds": 2 * 60, # Check for approved posts every 2 minutes
