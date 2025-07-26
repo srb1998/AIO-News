@@ -33,10 +33,6 @@ class Settings:
         self.INDIA_NEWS_PRIORITY = float(os.getenv("INDIA_NEWS_PRIORITY", 0.8))
         self.BREAKING_NEWS_BOOST = float(os.getenv("BREAKING_NEWS_BOOST", 2.0))
         
-        # Scheduling Configuration
-        self.BREAKING_NEWS_CHECK_INTERVAL = int(os.getenv("BREAKING_NEWS_CHECK_INTERVAL", 45))  # minutes
-        self.FULL_WORKFLOW_TIMES = ["08:00", "14:00", "20:00"]  # 8 AM, 2 PM, 8 PM
-        
         # Breaking News
         self.BREAKING_NEWS_KEYWORDS = [
             "breaking", "urgent", "alert", "just in", "developing", "crisis",
@@ -50,8 +46,8 @@ class Settings:
         # News Sources (RSS Feeds - FREE!)
         self.RSS_SOURCES = [
             {
-                "name": "BBC World News",
-                "url": "http://feeds.bbci.co.uk/news/world/rss.xml",
+                "name": "Hindustan Times - World News",
+                "url": "https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml",
                 "category": "international",
                 "reliability": 9
             },

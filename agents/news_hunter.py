@@ -123,7 +123,7 @@ class NewsHunterAgent:
             {articles_text}
             - The `headline` should be your new, viral-style headline.
             - The `summary` should be a short, punchy, 1-2 sentence explanation in the same style.
-            - The `priority` score (1-10) must be based on VIRAL POTENTIAL and importance. A story about a celebrity feud or a shocking local event is a 10
+            - The `priority` score (1-10) must be based on VIRAL POTENTIAL and shocking and interesting news. A story about a celebrity feud or a shocking local event is a 10.
             - The `category` should be simple: 'Tech', 'Entertainment', 'World News', 'Finance', 'Oddly Specific'.
             - Add an `original_title` field to store the article's original title for caching.
             Return only the JSON object with this structure and dont make any error like forgetting comma or double quotes:

@@ -25,9 +25,17 @@ class TelegramNotifier:
         self.supported_image_formats = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff']
         self.supported_video_formats = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.wmv', '.m4v']
         self.web_upload_base_url = settings.WEB_UPLOADER_BASE_URL
+        self.scheduler_manager = None # <-- NEW
+        self.manager_agent = None
 
     def set_social_media_manager(self, social_media_manager):
         self.social_media_manager = social_media_manager
+
+    def set_scheduler_manager(self, scheduler_manager): # <-- NEW
+        self.scheduler_manager = scheduler_manager
+
+    def set_manager_agent(self, manager_agent): # <-- NEW
+        self.manager_agent = manager_agent
 
     def _escape_markdown(self, text: str) -> str:
         """Escape MarkdownV2 special characters"""
@@ -112,30 +120,84 @@ class TelegramNotifier:
                     {"text": f"❌ Reject {platform.capitalize()}", "callback_data": f"reject_{platform}_{story_id}"}
                 ],
                 [
-                    # This is now a URL button, not a callback button
+                    # Url to upload media directly to the web uploader
                     {"text": f"📁 Upload Media for {platform.capitalize()}", "url": upload_url}
                 ]
             ]
         }
 
     async def _process_update(self, update: Dict):
-        """Process incoming updates from Telegram"""
-        try:
-            if "callback_query" in update:
-                await self.handle_callback_query(update["callback_query"])
-            elif "message" in update:
-                chat_id = update["message"]["chat"]["id"]
-                
-                # Handle text commands during an upload session
-                if "text" in update["message"] and chat_id in self.user_states:
-                    await self.handle_text_message(update["message"])
-                
-                # Handle media uploads during an upload session
-                elif chat_id in self.user_states and (update["message"].get("photo") or update["message"].get("video") or update["message"].get("document")):
-                    await self.handle_media_upload(update["message"])
-                    
-        except Exception as e:
-            print(f"❌ Error processing update: {e}")
+       """Process incoming updates, now checking for text commands first."""
+       try:
+           if "message" in update and "text" in update["message"]:
+               # Handle text commands before other logic
+               is_command_handled = await self.handle_text_command(update["message"])
+               if is_command_handled:
+                   return
+           
+           if "callback_query" in update:
+               await self.handle_callback_query(update["callback_query"])
+       except Exception as e:
+           print(f"❌ Error processing update: {e}")
+
+    async def handle_text_command(self, message: Dict) -> bool:
+        """Handles text commands for controlling the service."""
+        text = message.get("text", "").strip()
+        chat_id = message["chat"]["id"]
+        parts = text.split()
+        command = parts[0].lower()
+
+        if not self.scheduler_manager or not self.manager_agent:
+            # Silently ignore commands if the bot is not fully initialized
+            # to prevent user confusion.
+            return False
+
+        if command == "/schedule":
+            settings_text = self.scheduler_manager.get_current_settings()
+            await self._send_message(chat_id, self._escape_markdown(settings_text))
+            return True
+
+        elif command == "/setfrequency":
+            if len(parts) == 2 and parts[1].isdigit():
+                seconds = int(parts[1])
+                if self.scheduler_manager.set_frequency(seconds):
+                    # --- ADDED CONFIRMATION ---
+                    hours = seconds / 3600
+                    await self._send_message(chat_id, self._escape_markdown(f"✅ Frequency updated to run every {hours:.1f} hours."))
+                else:
+                    await self._send_message(chat_id, self._escape_markdown("❌ Invalid frequency. Must be at least 60 seconds."))
+            else:
+                await self._send_message(chat_id, self._escape_markdown("Usage: `/setfrequency <seconds>` (e.g., 10800 for 3 hours)"))
+            return True
+
+        elif command == "/setexclusion":
+            if len(parts) == 3:
+                start_time, end_time = parts[1], parts[2]
+                if self.scheduler_manager.set_exclusion_window(start_time, end_time):
+
+                    await self._send_message(chat_id, self._escape_markdown(f"✅ Exclusion window set to {start_time} - {end_time} IST."))
+                else:
+                    await self._send_message(chat_id, self._escape_markdown("❌ Invalid format. Use: `/setexclusion HH:MM HH:MM` (e.g., 23:00 08:00)"))
+            else:
+                await self._send_message(chat_id, self._escape_markdown("Usage: `/setexclusion <start_HH:MM> <end_HH:MM>`"))
+            return True
+            
+        elif command == "/start":
+        
+            await self._send_message(chat_id, self._escape_markdown("🚀 Instantiating immediate workflow run... Please wait for the results."))
+            # Run the workflow in the background so it doesn't block the bot
+            asyncio.create_task(self.manager_agent.execute_daily_workflow(posting_mode="hitl"))
+            return True
+            
+        elif command in ["/on", "/off"]:
+            is_enabled = command == "/on"
+            self.scheduler_manager.toggle_service(is_enabled)
+            status = "ENABLED" if is_enabled else "DISABLED"
+
+            await self._send_message(chat_id, self._escape_markdown(f"✅ Scheduled workflows are now **{status}**."))
+            return True
+
+        return False 
 
     async def handle_text_message(self, message: Dict):
         """Handle text messages like /done or /cancel during an upload session"""
@@ -180,15 +242,29 @@ class TelegramNotifier:
                 await self.answer_callback_query(callback_query["id"], "Upload cancelled.")
             else: # Handle approve/reject actions
                 # Re-parse for approve_all/decline_all which have a different structure
-                if len(parts) == 3 and parts[0] in ["approve", "reject", "decline"]: # e.g., approve_instagram_story123
-                    action, platform, story_id = parts
-                elif len(parts) == 2: # e.g., approve_all_story123
-                    action, story_id = parts
-                    platform = None
-                
-                await self.answer_callback_query(callback_query["id"], f"Processing '{action}'...")
-                await self.social_media_manager.handle_telegram_callback(story_id, platform, action)
+                if len(parts) >= 2 and f"{parts[0]}_{parts[1]}" in ["approve_all", "decline_all", "reject_all"]:
+                     # Handle approve_all_story123, decline_all_story123, reject_all_story123
+                     action = f"{parts[0]}_{parts[1]}" # 'approve_all' or 'decline_all' or 'reject_all'
+                     # Story ID is the remaining parts joined back
+                     story_id = "_".join(parts[2:]) if len(parts) > 2 else ""
+                     platform = None # These actions apply to all platforms
+                     print(f"📊 Parsed All Action - Action: {action}, Story: {story_id}")
+                # Check for platform-specific actions (e.g., ['approve', 'twitter', 'story123'])
+                elif len(parts) >= 3 and parts[0] in ["approve", "reject", "decline"]:
+                    action = f"{parts[0]}_{parts[1]}" # e.g., 'approve_twitter'
+                    platform = parts[1] # e.g., 'twitter'
+                    # Story ID is the remaining parts joined back
+                    story_id = "_".join(parts[2:]) if len(parts) > 2 else ""
+                    print(f"📊 Parsed Platform Action - Action: {action}, Platform: {platform}, Story: {story_id}")
+                else:
+                    # Unrecognized action format
+                    print(f"❓ Unrecognized callback data format: {callback_data}")
+                    await self.answer_callback_query(callback_query["id"], "Unrecognized action.")
+                    return
 
+                await self.answer_callback_query(callback_query["id"], f"Processing '{action.replace('_', ' ').title()}'...")
+                await self.social_media_manager.handle_telegram_callback(story_id, platform, action)
+                
         except Exception as e:
             print(f"❌ Error handling callback query: {e}")
             await self.answer_callback_query(callback_query["id"], "Error processing request")

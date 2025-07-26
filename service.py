@@ -9,6 +9,7 @@ from typing import Dict, Any
 from agents.manager import ManagerAgent
 from agents.social_media_manager import SocialMediaManagerAgent
 from core.approval_queue import ApprovalQueue
+from core.scheduler_manager import SchedulerManager
 from services.telegram_bot import TelegramNotifier
 from config.settings import settings
 import os
@@ -31,10 +32,13 @@ class NewsAgencyService:
             bot_token=os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN")
         )
         self.social_media_manager = SocialMediaManagerAgent(telegram_bot=self.telegram_bot)
+        self.scheduler_manager = SchedulerManager()
 
         # --- 2. Wire Components Together ---
         self.telegram_bot.set_social_media_manager(self.social_media_manager)
-        set_social_media_manager(self.social_media_manager) # Inject instance into webhook server
+        self.telegram_bot.set_scheduler_manager(self.scheduler_manager)
+        self.telegram_bot.set_manager_agent(self.manager)
+        set_social_media_manager(self.social_media_manager)
 
         # --- 3. Load Configuration ---
         self.daily_workflow_interval = settings.WORKFLOW_TIMING["daily_workflow_interval"]
@@ -80,17 +84,24 @@ class NewsAgencyService:
         await asyncio.gather(*self.background_tasks)
 
     async def _daily_workflow_loop(self):
-        """Periodically runs the main batch workflow to find multiple stories."""
+        """Periodically runs the main batch workflow, respecting the schedule."""
         print("🔄 Daily Workflow Loop: Started.")
         while self.is_running:
             try:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] DAILY: Kicking off scheduled batch workflow...")
-                await self.manager.execute_daily_workflow(posting_mode="hitl")
+                if self.scheduler_manager.is_within_exclusion_window():
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] DAILY: I'm Sleeping...")
+                else:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] DAILY: Kicking off scheduled batch workflow...")
+                    await self.manager.execute_daily_workflow(posting_mode="hitl")
+                
+                # Sleep for the interval defined in the config file
+                interval = self.scheduler_manager.interval_seconds
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] DAILY: Next check in {interval / 3600:.1f} hours.")
+                await asyncio.sleep(interval)
+
             except Exception as e:
                 print(f"❌ ERROR in Daily Workflow Loop: {e}")
-            
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] DAILY: Run complete. Next run in {self.daily_workflow_interval / 3600:.1f} hours.")
-            await asyncio.sleep(self.daily_workflow_interval)
+                await asyncio.sleep(60)
 
     async def _breaking_news_loop(self):
         """Frequently checks for high-priority breaking news."""

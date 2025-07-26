@@ -234,7 +234,7 @@ class DetectiveAgent:
                     "impact_analysis": "Why this matters and who it affects",
                     "story_angles": ["Angle 1: Human interest", "Angle 2: Economic impact"],
                     "script_suggestions": "How to present this story engagingly",
-                    "visual_needs": ["Chart showing X", "Photo of Y", "Map of Z"],
+                    "visual_needs": [Give 2 examples only, "Chart showing X", "Photo of Y"],
                     "credibility_score": 1-10,
                     "follow_up_questions": ["What to investigate further?"]
                 }}
