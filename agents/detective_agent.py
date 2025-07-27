@@ -1,5 +1,6 @@
-import requests
-# from bs4 import BeautifulSoup
+import httpx
+import asyncio
+from bs4 import BeautifulSoup
 import time
 import json
 import re
@@ -12,13 +13,12 @@ from utils.cache_manager import cache_manager
 class DetectiveAgent:
     def __init__(self):
         self.name = "detective"
-        self.session = requests.Session()
-        self.session.headers.update({
+        self.session = httpx.AsyncClient(headers={
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        })
+        }, timeout=10.0)
     
     @track_tokens("Detective")
-    def investigate_top_stories(self, top_headlines: List[Dict[str, Any]], max_stories: int = 5) -> Dict[str, Any]:
+    async def investigate_top_stories(self, top_headlines: List[Dict[str, Any]], max_stories: int = 5) -> Dict[str, Any]:
         """
         Main investigation method - takes top headlines and creates detailed research reports
         """
@@ -37,17 +37,13 @@ class DetectiveAgent:
                 "message": "No high-priority stories found for investigation",
                 "investigation_reports": []
             }
-        
+
         # Step 1: Extract content from source URLs (FREE)
-        research_data = []
-        for story in stories_to_investigate:
-            print(f"🔍 Extracting content for: {story['headline'][:50]}...")
-            content_data = self._extract_source_content(story)
-            research_data.append(content_data)
-            time.sleep(0.5) 
+        tasks = [self._extract_source_content(story) for story in stories_to_investigate]
+        research_data = await asyncio.gather(*tasks)
         
         # Step 2: Batch analysis with LLM (EFFICIENT)
-        analysis_result = self._analyze_batch_with_llm(research_data)
+        analysis_result = await self._analyze_batch_with_llm(research_data)
         
         if "error" in analysis_result:
             return {"success": False, "error": analysis_result["error"]}
@@ -66,7 +62,7 @@ class DetectiveAgent:
             "ready_for_script_writer": True
         }
     
-    def _extract_source_content(self, story: Dict[str, Any]) -> Dict[str, Any]:
+    async def _extract_source_content(self, story: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extract content from source URL + additional research (FREE methods)
         """
@@ -93,21 +89,20 @@ class DetectiveAgent:
         # Extract from source URL if available
         source_url = story.get("url") or story.get("source_url")
         if source_url:
-            extracted = self._scrape_article_content(source_url)
-            content_data["extracted_content"] = extracted["content"]
-            content_data["key_quotes"] = extracted["quotes"]
-            content_data["statistics"] = extracted["statistics"]
-        
-        # Get additional context with DuckDuckGo Instant Answers (FREE)
-        additional_info = self._get_duckduckgo_context(story["headline"])
-        content_data["related_info"] = additional_info
+            extracted, additional_info = await asyncio.gather(
+                self._scrape_article_content(source_url),
+                self._get_duckduckgo_context(story["headline"])
+            )
+
+            content_data.update(extracted)
+            content_data["related_info"] = additional_info
         
         # Cache the result
         cache_manager.set(cache_key, content_data, expire_hours=24)
         
         return content_data
     
-    def _scrape_article_content(self, url: str) -> Dict[str, Any]:
+    async def _scrape_article_content(self, url: str) -> Dict[str, Any]:
         """
         Scrape article content from URL (FREE web scraping)
         """
@@ -117,11 +112,11 @@ class DetectiveAgent:
             response = self.session.get(url, timeout=10)
             response.raise_for_status()
             
-            # soup = BeautifulSoup(response.content, 'html.parser')
+            soup = BeautifulSoup(response.content, 'html.parser')
             
             # Remove unwanted elements
-            # for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
-            #     element.decompose()
+            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
+                element.decompose()
             
             # Extract main content
             content_selectors = [
@@ -149,6 +144,7 @@ class DetectiveAgent:
             stats = re.findall(r'\b\d+(?:\.\d+)?%?\b(?:\s+(?:percent|million|billion|thousand|dollars?))?', main_content)
             stats = list(set(stats))[:5]  # Top 5 unique stats
             
+            await asyncio.sleep(0.01)
             return {
                 "content": main_content[:1500],  # Limit content to save tokens
                 "quotes": quotes,
@@ -159,46 +155,31 @@ class DetectiveAgent:
             print(f"❌ Scraping failed for {url}: {str(e)}")
             return {"content": "", "quotes": [], "statistics": []}
     
-    def _get_duckduckgo_context(self, headline: str) -> str:
-        """
-        Get additional context using DuckDuckGo Instant Answer API (FREE)
-        """
+    async def _get_duckduckgo_context(self, headline: str) -> str:
+        """Gets DuckDuckGo context asynchronously."""
         try:
-            # Extract key terms from headline for search
-            search_terms = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', headline)
-            if not search_terms:
-                search_terms = headline.split()[:3]
-            
-            query = ' '.join(search_terms[:2])  # Use top 2 terms
-            
-            # DuckDuckGo Instant Answer API (FREE)
+            query = ' '.join(headline.split()[:3])
             ddg_url = f"https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1"
             
-            response = requests.get(ddg_url, timeout=5)
+            # --- MODIFIED: Use await with the async client ---
+            response = await self.session.get(ddg_url)
+            response.raise_for_status()
             data = response.json()
             
-            # Extract useful information
             context_info = []
-            
-            if data.get("Abstract"):
-                context_info.append(data["Abstract"])
-            
-            if data.get("Definition"):
-                context_info.append(data["Definition"])
-            
-            # Get related topics
+            if data.get("Abstract"): context_info.append(data["Abstract"])
             if data.get("RelatedTopics"):
                 for topic in data["RelatedTopics"][:2]:
                     if isinstance(topic, dict) and topic.get("Text"):
                         context_info.append(topic["Text"])
-            print(f"🔎 DuckDuckGo context for '{headline}': {context_info}")
-            return " | ".join(context_info) if context_info else ""
             
+            print(f"🔎 DuckDuckGo context for '{headline[:30]}...': {'Found' if context_info else 'None'}")
+            return " | ".join(context_info)
         except Exception as e:
             print(f"❌ DuckDuckGo context failed: {str(e)}")
             return ""
-    
-    def _analyze_batch_with_llm(self, research_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+
+    async def _analyze_batch_with_llm(self, research_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Analyze all research data in a single LLM call (EFFICIENT)
         """
@@ -250,7 +231,7 @@ class DetectiveAgent:
         """
         print(f"📝 Prompt for Detective LLM:\n{prompt}")
         # Use smart LLM generation (Gemini first, OpenAI fallback)
-        return llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
+        return await llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
     
     def _format_research_for_prompt(self, research_data: List[Dict[str, Any]]) -> str:
         """

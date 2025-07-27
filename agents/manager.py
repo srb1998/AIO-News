@@ -8,6 +8,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 import asyncio
 import os
+import json
 
 class ManagerAgent:
     def __init__(self):
@@ -45,7 +46,7 @@ class ManagerAgent:
         try:
             # Step 1: News Hunter - Get structured headlines
             print("\n🔄 Step 1: News Hunter - Gathering articles...")
-            hunter_result = self.agents["news_hunter"].hunt_daily_news(max_articles=12)
+            hunter_result = await self.agents["news_hunter"].hunt_daily_news(max_articles=5)
             
             workflow_result["steps"].append({
                 "step": 1,
@@ -97,7 +98,7 @@ class ManagerAgent:
 
             # Step 2: Detective Agent - Investigate top stories
             print("\n🔄 Step 2: Detective Agent - Investigating top stories...")
-            detective_result = self.agents["detective"].investigate_top_stories(
+            detective_result = await self.agents["detective"].investigate_top_stories(
                 final_headlines, max_stories=3
             )
 
@@ -122,7 +123,7 @@ class ManagerAgent:
             script_result = {"success": False, "platform_scripts": []}
             
             if investigation_reports:
-                script_result = self.agents["script_writer"].generate_multi_platform_scripts(
+                script_result = await self.agents["script_writer"].generate_multi_platform_scripts(
                     investigation_reports, max_stories=3
                 )
                 
@@ -238,7 +239,7 @@ class ManagerAgent:
 
         try:
             # Get breaking news
-            hunter_result = self.agents["news_hunter"].hunt_breaking_news()
+            hunter_result = await self.agents["news_hunter"].hunt_breaking_news()
 
             if not hunter_result.get("success") or not hunter_result.get("breaking_news_found"):
                 return {

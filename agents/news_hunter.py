@@ -1,18 +1,21 @@
 import re
+import json
+import asyncio
 from core.token_manager import track_tokens, token_manager
 from core.llm_client import llm_client
 from core.news_sources import NewsSourceManager
 from typing import List, Dict, Any
-import json
 from core.story_cache import StoryCache
+from core.semantic_cache import SemanticCache
 
 class NewsHunterAgent:
     def __init__(self):
         self.news_sources = NewsSourceManager()
         self.story_cache = StoryCache()
+        self.semantic_cache = SemanticCache()   
     
     @track_tokens("NewsHunter")
-    def hunt_daily_news(self, max_articles: int = 25) -> Dict[str, Any]:
+    async def hunt_daily_news(self, max_articles: int = 25) -> Dict[str, Any]:
         """Hunt for daily news articles and make engaging headlines"""
         print("🕵️ News Hunter Agent: Starting daily news hunt...")
         
@@ -24,26 +27,34 @@ class NewsHunterAgent:
         print(f"📡 Fetched {len(raw_articles)} articles from sources")
         # print(f"🔍 Raw Articles are {raw_articles}")
 
-        unseen_articles = []
+        unseen_articles_with_embeddings = []
         for article in raw_articles:
             # Use a combination of title and source to create a unique key
-            cache_key = f"{article['title']}_{article['source']}"
-            if not self.story_cache.has_story(cache_key):
-                unseen_articles.append(article)
-            else:
-                print(f"CACHE HIT: Skipping already processed story '{article['title'][:50]}...'")
-        
-        print(f"📰 Found {len(unseen_articles)} new, unseen articles.")
-        if not unseen_articles:
-            return {"success": True, "message": "No new articles to process.", "top_headlines": []}
+            text_to_embed = f"{article['title']}\n{article['description']}"
+            
+            embedding = await llm_client.get_embedding(text_to_embed)
+            if not embedding:
+                print(f"⚠️ Could not generate embedding for '{article['title'][:30]}...'. Skipping.")
+                continue
 
-        print(f"📊 Found {len(unseen_articles)} unseen articles")
+            if not self.semantic_cache.is_story_similar(embedding):
+                print(f"✅ Unique story found: '{article['title'][:50]}...'")
+                # Store the embedding with the article to avoid generating it again
+                article['embedding'] = embedding
+                unseen_articles_with_embeddings.append(article)
+            else:
+                print(f"SEMANTIC HIT: Skipping duplicate story '{article['title'][:50]}...'")
+            
+            await asyncio.sleep(0.1) # Small delay to avoid hitting rate limits
+
+        if not unseen_articles_with_embeddings:
+            return {"success": True, "message": "No new unique articles to process.", "top_headlines": []}
 
         # Limit articles to save tokens
-        limited_articles = unseen_articles[:max_articles]
-        print(f"Limited articles: {limited_articles}")
+        limited_articles = unseen_articles_with_embeddings[:max_articles]
+        # print(f"Limited articles: {limited_articles}")
 
-        processed_result = self._process_articles_with_llm(limited_articles)
+        processed_result = await self._process_articles_with_llm(limited_articles)
         # print(f"Processed result from LLM: {processed_result}")
         if "error" in processed_result:
             return processed_result
@@ -58,9 +69,13 @@ class NewsHunterAgent:
         
         headlines = structured.get("top_headlines", [])
         
-        for headline_data in headlines:
-            cache_key = f"{headline_data.get('original_title')}_{headline_data.get('source')}"
-            self.story_cache.add_story(cache_key)
+        for i, headline_data in enumerate(headlines):
+            if i < len(limited_articles):
+                # Use the pre-calculated embedding
+                embedding_to_add = limited_articles[i]['embedding']
+                # Create a stable ID from the original title and source
+                story_id = str(abs(hash(f"{headline_data.get('original_title')}_{headline_data.get('source')}")))
+                self.semantic_cache.add_story_embedding(story_id, embedding_to_add)
 
         headlines.sort(key=lambda x: x.get("priority", 0), reverse=True)
         return {
@@ -71,7 +86,7 @@ class NewsHunterAgent:
         }
     
     @track_tokens("NewsHunter-Breaking")
-    def hunt_breaking_news(self) -> Dict[str, Any]:
+    async def hunt_breaking_news(self) -> Dict[str, Any]:
         """Hunt specifically for breaking news"""
         print("🚨 News Hunter Agent: Checking for breaking news...")
         
@@ -84,7 +99,7 @@ class NewsHunterAgent:
         print(f"🚨 Found {len(breaking_articles)} breaking news articles")
         
         # Process breaking news with high priority
-        processed_result = self._process_breaking_news_with_llm(breaking_articles)
+        processed_result = await self._process_breaking_news_with_llm(breaking_articles)
         
         if "error" in processed_result:
             return processed_result
@@ -96,7 +111,7 @@ class NewsHunterAgent:
             "token_usage": processed_result["token_usage"]
         }
     
-    def _process_articles_with_llm(self, articles: List[Dict]) -> Dict[str, Any]:
+    async def _process_articles_with_llm(self, articles: List[Dict]) -> Dict[str, Any]:
         """Process articles using LLM for summarization and categorization"""
         
         # Create efficient prompt
@@ -144,9 +159,9 @@ class NewsHunterAgent:
             """
         print(f"Prompt for news hunter LLM:", prompt)
         # Use smart LLM generation
-        return llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
-    
-    def _process_breaking_news_with_llm(self, articles: List[Dict]) -> Dict[str, Any]:
+        return await llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
+
+    async def _process_breaking_news_with_llm(self, articles: List[Dict]) -> Dict[str, Any]:
         """Process breaking news with high priority LLM"""
         
         articles_text = self._format_articles_for_prompt(articles)
@@ -177,8 +192,8 @@ class NewsHunterAgent:
         """
 
         # Use high priority for breaking news
-        return llm_client.smart_generate(prompt, max_tokens=400, priority="critical")
-    
+        return await llm_client.smart_generate(prompt, max_tokens=400, priority="critical")
+
     def _format_articles_for_prompt(self, articles: List[Dict]) -> str:
         """Format articles efficiently for LLM prompt"""
         formatted = []

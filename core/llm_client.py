@@ -2,9 +2,10 @@ import os
 from google import genai
 from google.genai import types
 from openai import OpenAI
+from openai import AsyncOpenAI
 from config.settings import settings
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 import asyncio
 
 class LLMClient:
@@ -16,7 +17,7 @@ class LLMClient:
         
         # Configure OpenAI  
         if settings.OPENAI_API_KEY:
-            self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
     
     def generate_with_gemini(self, prompt: str, max_tokens: int = 1000) -> Dict[str, Any]:
         """Generate text using Gemini """
@@ -27,7 +28,7 @@ class LLMClient:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     max_output_tokens=max_tokens,
-                    temperature=1.0
+                    temperature=0.9
                 )
             )
             
@@ -49,50 +50,56 @@ class LLMClient:
             print(f"❌ Gemini error: {e}")
             return {"error": str(e)}
     
-    def generate_with_openai(self, prompt: str, max_tokens: int = 1000) -> Dict[str, Any]:
-        """Generate text using OpenAI GPT-4o-mini"""
+    async def generate_with_openai(self, prompt: str, max_tokens: int = 1000) -> Dict[str, Any]:
+        """Generate text using OpenAI GPT-4o-mini asynchronously."""
         try:
-            response = self.openai_client.chat.completions.create(
+            response = await self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=max_tokens,
                 temperature=0.7
             )
-            
             tokens_used = response.usage.total_tokens
-            cost = (tokens_used / 1000) * settings.COST_PER_1K_TOKENS_OPENAI
-            
+            cost = (tokens_used / 1_000_000) * 0.15 # gpt-4o-mini cost per 1M tokens
             return {
                 "content": response.choices[0].message.content,
-                "token_usage": {
-                    "model": "gpt-4o-mini", 
-                    "tokens": tokens_used,
-                    "cost": cost
-                }
+                "token_usage": {"model": "gpt-4o-mini", "tokens": tokens_used, "cost": cost}
             }
         except Exception as e:
             print(f"❌ OpenAI error: {e}")
             return {"error": str(e)}
     
-    def smart_generate(self, prompt: str, max_tokens: int = 800, priority: str = "normal") -> Dict[str, Any]:
-        """Smart model selection based on priority and budget"""
-        
-        # For critical tasks or when Gemini fails, use OpenAI
+    async def smart_generate(self, prompt: str, max_tokens: int = 8000, priority: str = "normal") -> Dict[str, Any]:
+        """Smart model selection, now fully asynchronous."""
         if priority == "critical":
-            result = self.generate_with_openai(prompt, max_tokens)
-            if "error" not in result:
-                return result
+            return await self.generate_with_openai(prompt, max_tokens)
         
-        # Default: Try Gemini first (FREE!)
-        result = self.generate_with_gemini(prompt, max_tokens)
+        # Run the synchronous Gemini call in a separate thread to avoid blocking
+        result = await asyncio.to_thread(self.generate_with_gemini, prompt, max_tokens)
+        
         if "error" not in result:
             return result
         
-        # Fallback to OpenAI if Gemini fails
-        print("🔄 Gemini failed, trying OpenAI...")
-        return self.generate_with_openai(prompt, max_tokens)
+        print("🔄 Gemini failed, trying OpenAI as fallback...")
+        return await self.generate_with_openai(prompt, max_tokens)
+    
+    async def get_embedding(self, text: str) -> Optional[List[float]]:
+        """
+        Generates a vector embedding for a given text using OpenAI.
+        """
+        if not text: return None
+        try:
+            text = text.replace("\n", " ").strip()
+            response = await self.openai_client.embeddings.create(
+                model="text-embedding-3-small",
+                input=[text]
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            print(f"❌ OpenAI embedding failed: {e}")
+            return None
 
-    async def generate_image(self, prompt: str) -> bytes:
+    async def _generate_image_sync(self, prompt: str) -> bytes:
         """
         Use Gemini 2.0-Flash to generate an image.
         Returns image bytes or empty bytes on failure.
@@ -118,6 +125,10 @@ class LLMClient:
         except Exception as e:
             print(f"❌ Gemini image generation error: {e}")
             return b""
+    
+    async def generate_image(self, prompt: str) -> bytes:
+        """Asynchronously generates an image using Gemini."""
+        return await asyncio.to_thread(self._generate_image_sync, prompt)
 
 # Global LLM client
 llm_client = LLMClient()

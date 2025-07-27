@@ -1,5 +1,6 @@
 # FILE: agents/script_writer.py
 
+import asyncio
 from core.llm_client import LLMClient
 from core.token_manager import token_manager
 from typing import Dict, Any, List
@@ -13,7 +14,7 @@ class ScriptWriterAgent:
         self.llm_client = LLMClient()
         self.templates = self._load_templates()
 
-    def generate_multi_platform_scripts(self, investigation_reports: List[Dict[str, Any]], 
+    async def generate_multi_platform_scripts(self, investigation_reports: List[Dict[str, Any]], 
                                       max_stories: int = 3) -> Dict[str, Any]:
         """
         Generate scripts for all platforms from detective investigation reports
@@ -31,50 +32,39 @@ class ScriptWriterAgent:
                     "error": "No priority stories found for script generation"
                 }
 
-            # Generate scripts using batched approach
+            tasks = [self._generate_story_scripts(story) for story in priority_stories]
+
+            results = await asyncio.gather(*tasks)
+
+            # Process the results
             script_results = []
             total_tokens = 0
             total_cost = 0.0
 
-            for story in priority_stories:
-                print(f"📝 Generating scripts for: {story.get('original_headline', 'Unknown story')[:50]}...")
-                
-                # Generate all platform scripts in one LLM call
-                script_result = self._generate_story_scripts(story)
-                
-                if script_result.get("success"):
-                    script_results.append(script_result["scripts"])
-                    
-                    # Track token usage
-                    tokens = script_result.get("token_usage", {}).get("tokens", 0)
-                    cost = script_result.get("token_usage", {}).get("cost", 0)
+            for result in results:
+                if result.get("success"):
+                    script_results.append(result["scripts"])
+                    tokens = result.get("token_usage", {}).get("tokens", 0)
+                    cost = result.get("token_usage", {}).get("cost", 0)
                     total_tokens += tokens
                     total_cost += cost
-                    
-                    print(f"✅ Scripts generated ({tokens} tokens, ${cost:.4f})")
                 else:
-                    print(f"❌ Failed to generate scripts: {script_result.get('error')}")
+                    print(f"❌ A script generation task failed: {result.get('error')}")
 
             return {
                 "success": True,
                 "scripts_generated": len(script_results),
                 "platform_scripts": script_results,
                 "token_usage": {
-                    "model": "gemini-2.0-flash",
+                    "model": "mixed", # Model can vary per call
                     "tokens": total_tokens,
                     "cost": total_cost
                 },
-                "ready_for_social_media_manager": len(script_results) > 0,
-                "generation_timestamp": datetime.now().isoformat()
             }
-
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Script generation failed: {str(e)}"
-            }
+            return {"success": False, "error": f"Script generation failed: {str(e)}"}
 
-    def _generate_story_scripts(self, story: Dict[str, Any]) -> Dict[str, Any]:
+    async def _generate_story_scripts(self, story: Dict[str, Any]) -> Dict[str, Any]:
         """Generate all platform scripts for a single story using one LLM call"""
         
         # Build comprehensive prompt for all platforms
@@ -82,7 +72,7 @@ class ScriptWriterAgent:
         
         try:
             # Single LLM call for all platforms
-            response = self.llm_client.smart_generate(prompt, max_tokens=5000, priority="normal")
+            response = await self.llm_client.smart_generate(prompt, max_tokens=5000, priority="normal")
             
             # if not response.get("success"):
             #     return {
