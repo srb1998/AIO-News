@@ -54,8 +54,8 @@ class NewsSourceManager:
         except Exception as e:
             print(f"❌ Error fetching {source['name']}: {e}")
             return []
-    
-    def fetch_all_sources(self) -> List[Dict]:
+
+    def fetch_all_sources(self, max_articles: int = 40) -> List[Dict]:
         """Fetch articles from ALL sources (RSS + Brave API)"""
         print("🌐 Fetching from ALL sources (RSS + Brave API)...")
         all_articles = []
@@ -89,41 +89,11 @@ class NewsSourceManager:
         
         # Sort by priority and freshness
         sorted_articles = self._sort_articles_by_priority(unique_articles)
-        
-        print(f"✅ Final result: {len(sorted_articles)} articles ready for processing")
-        return sorted_articles
-    
-    def get_breaking_news(self) -> List[Dict]:
-        """Get ONLY breaking news from all sources"""
-        print("🚨 Collecting breaking news from all sources...")
-        breaking_articles = []
-        
-        # 1. RSS Breaking News
-        rss_articles = []
-        for source in self.sources:
-            articles = self.fetch_rss_feed(source)
-            rss_articles.extend(articles)
-        
-        rss_breaking = [article for article in rss_articles if article['is_breaking']]
-        breaking_articles.extend(rss_breaking)
-        
-        # 2. Brave API Breaking News
-        try:
-            brave_breaking = brave_client.get_breaking_news()
-            breaking_articles.extend(brave_breaking)
-        except Exception as e:
-            print(f"⚠️ Brave breaking news fetch failed: {e}")
-        
-        # 3. Filter for very recent breaking news (last 4 hours)
-        recent_breaking = self._filter_very_recent(breaking_articles, hours=4)
-        
-        # 4. Deduplicate and sort
-        unique_breaking = self._deduplicate_articles(recent_breaking)
-        sorted_breaking = sorted(unique_breaking, key=lambda x: x['published'], reverse=True)
-        
-        print(f"🚨 Found {len(sorted_breaking)} unique breaking news articles")
-        return sorted_breaking[:10]  # Top 10 breaking news
-    
+        limited_and_sorted_articles = sorted_articles[:max_articles]
+
+        print(f"✅ Final result: {len(limited_and_sorted_articles)} articles ready for processing")
+        return limited_and_sorted_articles
+
     def _deduplicate_articles(self, articles: List[Dict]) -> List[Dict]:
         """Remove duplicate articles based on title similarity"""
         unique_articles = []

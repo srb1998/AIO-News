@@ -104,55 +104,54 @@ class DetectiveAgent:
     
     async def _scrape_article_content(self, url: str) -> Dict[str, Any]:
         """
-        Scrape article content from URL (FREE web scraping)
+        Scrapes article content asynchronously, handling network and parsing correctly.
         """
         try:
             print(f"🌐 Scraping: {urlparse(url).netloc}")
             
-            response = self.session.get(url, timeout=10)
+            response = await self.session.get(url)
             response.raise_for_status()
             
-            soup = BeautifulSoup(response.content, 'html.parser')
+            html_content = response.content
+
+            def parse_html(content):
+                soup = BeautifulSoup(content, 'html.parser')
+                
+                for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
+                    element.decompose()
+                
+                content_selectors = ['article', '.article-body', '.story-body', 'main']
+                main_content = ""
+                for selector in content_selectors:
+                    content_elem = soup.select_one(selector)
+                    if content_elem:
+                        main_content = content_elem.get_text(strip=True)
+                        break
+                
+                if not main_content:
+                    paragraphs = soup.find_all('p')
+                    main_content = ' '.join([p.get_text(strip=True) for p in paragraphs])
+                
+                quotes = re.findall(r'"(.*?)"', main_content)
+                quotes = [q for q in quotes if len(q) > 20][:3]
+                
+                stats = re.findall(r'\b\d+(?:\.\d+)?%?\b', main_content)
+                stats = list(set(stats))[:5]
+                
+                return {
+                    "content": main_content[:2000],
+                    "quotes": quotes,
+                    "statistics": stats
+                }
+
+            # Run the blocking function in a non-blocking way
+            parsed_data = await asyncio.to_thread(parse_html, html_content)
             
-            # Remove unwanted elements
-            for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside']):
-                element.decompose()
-            
-            # Extract main content
-            content_selectors = [
-                'article', '[role="main"]', '.content', '.article-body', 
-                '.story-body', '.post-content', 'main', '.entry-content'
-            ]
-            
-            main_content = ""
-            # for selector in content_selectors:
-            #     content_elem = soup.select_one(selector)
-            #     if content_elem:
-            #         main_content = content_elem.get_text(strip=True)
-            #         break
-            
-            # if not main_content:
-            #     # Fallback: get all paragraph text
-            #     paragraphs = soup.find_all('p')
-            #     main_content = ' '.join([p.get_text(strip=True) for p in paragraphs])
-            
-            # Extract quotes (text in quotes)
-            quotes = re.findall(r'"([^"]*)"', main_content)
-            quotes = [q for q in quotes if len(q) > 20][:3]  # Top 3 substantial quotes
-            
-            # Extract statistics/numbers
-            stats = re.findall(r'\b\d+(?:\.\d+)?%?\b(?:\s+(?:percent|million|billion|thousand|dollars?))?', main_content)
-            stats = list(set(stats))[:5]  # Top 5 unique stats
-            
-            await asyncio.sleep(0.01)
-            return {
-                "content": main_content[:1500],  # Limit content to save tokens
-                "quotes": quotes,
-                "statistics": stats
-            }
+            print(f"✅ Scraping successful for: {urlparse(url).netloc}")
+            return parsed_data
             
         except Exception as e:
-            print(f"❌ Scraping failed for {url}: {str(e)}")
+            print(f"❌ Scraping failed for {url}: {e}")
             return {"content": "", "quotes": [], "statistics": []}
     
     async def _get_duckduckgo_context(self, headline: str) -> str:

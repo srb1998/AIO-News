@@ -24,8 +24,8 @@ class Settings:
         self.COST_PER_1K_TOKENS_OPENAI = float(os.getenv("COST_PER_1K_TOKENS_OPENAI", 0.00015))
         
         # Brave Search Configuration
-        self.BRAVE_ARTICLE_COUNT_WORLD = int(os.getenv("BRAVE_ARTICLE_COUNT_WORLD", 3))
-        self.BRAVE_ARTICLE_COUNT_INDIA = int(os.getenv("BRAVE_ARTICLE_COUNT_INDIA", 5))
+        self.BRAVE_ARTICLE_COUNT_WORLD = int(os.getenv("BRAVE_ARTICLE_COUNT_WORLD", 2))
+        self.BRAVE_ARTICLE_COUNT_INDIA = int(os.getenv("BRAVE_ARTICLE_COUNT_INDIA", 3))
         self.BRAVE_CACHE_DURATION = int(os.getenv("BRAVE_CACHE_DURATION", 20))  # minutes
         
         # News Priority Settings
@@ -42,12 +42,20 @@ class Settings:
         
         # Enhanced Breaking News Time Window (hours)
         self.BREAKING_NEWS_TIME_WINDOW = int(os.getenv("BREAKING_NEWS_TIME_WINDOW", 4))
-        
+
+        self.HITL_SELECTION_TIMEOUT_SECONDS = 300
+
         # News Sources (RSS Feeds - FREE!)
         self.RSS_SOURCES = [
             {
                 "name": "Hindustan Times - World News",
                 "url": "https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml",
+                "category": "international",
+                "reliability": 9
+            },
+            {
+                "name": "Hindustan Times - India News",
+                "url": "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml",
                 "category": "international",
                 "reliability": 9
             },

@@ -46,7 +46,7 @@ class ManagerAgent:
         try:
             # Step 1: News Hunter - Get structured headlines
             print("\n🔄 Step 1: News Hunter - Gathering articles...")
-            hunter_result = await self.agents["news_hunter"].hunt_daily_news(max_articles=5)
+            hunter_result = await self.agents["news_hunter"].hunt_daily_news(max_articles_to_fetch=40)
             
             workflow_result["steps"].append({
                 "step": 1,

@@ -23,12 +23,13 @@ class LLMClient:
         """Generate text using Gemini """
 
         try:
+            
             response = self.genai_client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     max_output_tokens=max_tokens,
-                    temperature=0.9
+                    temperature=0.80
                 )
             )
             
