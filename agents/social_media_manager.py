@@ -25,12 +25,12 @@ class SocialMediaManagerAgent:
         self.chat_id = settings.SERVICE_CONFIG.get("telegram_chat_id", "YOUR_CHAT_ID")
         self.max_media_per_post = 10
     
-    async def handle_webhook_upload(self, story_id: str, platform: str, media_url: str, resource_type: str):
+    async def handle_webhook_upload(self, story_id: str, platform: str, media_url: str, resource_type: str, workflow_id: str):
         """
         Processes a file uploaded via the web widget and notified via webhook.
         Applies headline to the first image and updates the approval queue.
         """
-        print(f"Handling webhook upload for {platform}/{story_id}: {media_url}")
+        print(f"Handling webhook upload for {platform}/{story_id}: {media_url} in workflow {workflow_id}")
         request = self.approval_queue.get_request(story_id, platform)
         if not request:
             print(f"⚠️ Webhook Error: No pending request found for {platform}/{story_id}")
@@ -47,7 +47,8 @@ class SocialMediaManagerAgent:
                 story_id=story_id,
                 platform=platform,
                 headline=request["content"],
-                subheadline=request.get("sub_content", "")
+                subheadline=request.get("sub_content", ""),
+                workflow_id=workflow_id
             )
             if processed_url:
                 final_media_url = processed_url
@@ -59,18 +60,19 @@ class SocialMediaManagerAgent:
         self.approval_queue.update_media(story_id, platform, db_media_type, final_media_url)
         print(f"✅ Media for {platform}/{story_id} updated in queue.")
 
-    async def process_scripts_for_posting(self, script_packages: List[Dict], **kwargs) -> Dict:
-        # ... (this method remains the same)
+    async def process_scripts_for_posting(self, script_packages: List[Dict], workflow_id: str, posting_mode: str = "hitl") -> Dict:
+
         results = {"success": True, "posts_processed": 0, "posts_pending": 0, "telegram_notifications_sent": 0, "errors": []}
         for script_package in script_packages:
-            story_result = await self._process_single_story_package(script_package)
+            story_result = await self._process_single_story_package(script_package, workflow_id)
             results["posts_processed"] += story_result.get("platforms_processed", 0)
             results["posts_pending"] += story_result.get("pending_approvals", 0)
             if story_result.get("telegram_sent"): results["telegram_notifications_sent"] += 1
             results["errors"].extend(story_result.get("errors", []))
         return results
 
-    async def _process_single_story_package(self, script_package: Dict) -> Dict:
+    async def _process_single_story_package(self, script_package: Dict, workflow_id: str) -> Dict:
+        """Processes a single story, creating approval requests with the correct workflow_id."""
         story_id = str(script_package.get("story_id", f"story_{int(datetime.now().timestamp())}"))
         headline = script_package.get("original_headline", "News Update")
         summary = script_package.get("research_summary", "")
@@ -81,14 +83,18 @@ class SocialMediaManagerAgent:
         ))[:3]
 
         message_ids = await self.telegram_bot.send_approval_notification(
-            story_id, self.platforms, headline, image_suggestions,
+            story_id=story_id,
+            workflow_id=workflow_id,
+            platforms=self.platforms,
+            content=headline,
+            image_suggestions=image_suggestions,
             twitter_content=script_package.get("twitter", {}).get("tweet", ""),
             instagram_content=script_package.get("instagram", {}).get("story_content", "")
         )
 
         for platform in self.platforms:
             self.approval_queue.add_request(
-                story_id=story_id, platform=platform, content=headline,
+                story_id=story_id, platform=platform, workflow_id=workflow_id, content=headline,
                 sub_content=summary, images=[], videos=[],
                 message_ids=message_ids, created_at=datetime.now()
             )
@@ -138,7 +144,7 @@ class SocialMediaManagerAgent:
                     text = self.telegram_bot._escape_markdown(f"❌ Rejected {p.capitalize()} (Story {story_id})")
                     await self.telegram_bot.update_message(self.chat_id, msg_id, text, {"inline_keyboard": []})
 
-    async def _handle_media_add(self, story_id: str, platform: str, media_info: Dict):
+    async def _handle_media_add(self, story_id: str, platform: str, media_info: Dict, workflow_id: str):
         """Process a single uploaded file: apply headline or upload directly."""
         media_path = media_info["path"]
         media_type = media_info["type"]
@@ -161,7 +167,7 @@ class SocialMediaManagerAgent:
                 print(f"Uploading additional media: {media_path}")
                 resource_type = "video" if media_type == "video" else "image"
                 upload_result = cloudinary.uploader.upload(
-                    media_path, folder=f"news/{story_id}/{platform}", resource_type=resource_type
+                    media_path, folder=f"news/processed/{workflow_id}/{story_id}/{platform}", resource_type=resource_type
                 )
                 final_media_url = upload_result.get("secure_url", "")
 
@@ -183,12 +189,13 @@ class SocialMediaManagerAgent:
 
         # If no media was provided by the user, generate an AI image as a fallback
         if not request["images"] and not request["videos"]:
+            workflow_id = request.get("workflow_id", "unknown_workflow")
             msg = self.telegram_bot._escape_markdown(f"⏳ Approved! No media found. Generating AI image for {platform.capitalize()}...")
             await self.telegram_bot.update_message(self.chat_id, request["message_ids"].get(platform), msg, {"inline_keyboard": []})
             
             ai_image_url = await self.image_gen.generate_social_image(
                 headline=request["content"], summary=request.get("sub_content", ""),
-                story_id=story_id, platform=platform
+                story_id=story_id, platform=platform, workflow_id=workflow_id
             )
             if ai_image_url:
                 self.approval_queue.update_media(story_id, platform, "images", ai_image_url)

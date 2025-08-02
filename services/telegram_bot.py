@@ -7,7 +7,7 @@ import asyncio
 import os
 import re
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from config.settings import settings
 
 class TelegramNotifier:
@@ -25,16 +25,16 @@ class TelegramNotifier:
         self.supported_image_formats = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff']
         self.supported_video_formats = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.wmv', '.m4v']
         self.web_upload_base_url = settings.WEB_UPLOADER_BASE_URL
-        self.scheduler_manager = None # <-- NEW
+        self.scheduler_manager = None
         self.manager_agent = None
 
     def set_social_media_manager(self, social_media_manager):
         self.social_media_manager = social_media_manager
 
-    def set_scheduler_manager(self, scheduler_manager): # <-- NEW
+    def set_scheduler_manager(self, scheduler_manager):
         self.scheduler_manager = scheduler_manager
 
-    def set_manager_agent(self, manager_agent): # <-- NEW
+    def set_manager_agent(self, manager_agent):
         self.manager_agent = manager_agent
 
     def _escape_markdown(self, text: str) -> str:
@@ -60,7 +60,7 @@ class TelegramNotifier:
         return await self._send_message(chat_id, batch_message, None)
 
     async def send_approval_notification(
-        self, story_id: str, platforms: List[str], content: str,
+        self, story_id: str, workflow_id: str, platforms: List[str], content: str,
         image_suggestions: List[str] = None,
         twitter_content: str = "", instagram_content: str = ""
     ) -> Dict[str, int]:
@@ -96,7 +96,7 @@ class TelegramNotifier:
             platform_message_text = f"👇 *Actions for {platform.capitalize()} \\(Story {story_id}\\)* 👇"
             message_id = await self._send_message(
                 self.chat_id, platform_message_text,
-                self._get_platform_buttons(story_id, platform)
+                self._get_platform_buttons(story_id, workflow_id, platform)
             )
             if message_id:
                 message_ids[platform] = message_id
@@ -105,11 +105,10 @@ class TelegramNotifier:
 
         return message_ids
 
-    def _get_platform_buttons(self, story_id: str, platform: str) -> Dict:
+    def _get_platform_buttons(self, story_id: str, workflow_id: str, platform: str) -> Dict:
         """Create platform-specific buttons, now with a URL for media upload."""
         # This assumes your manager.py passes the workflow_id down, or you generate one here.
         # For simplicity, let's use the story_id as part of the workflow identifier.
-        workflow_id = f"workflow_{story_id}"
 
         upload_url = f"{self.web_upload_base_url}/?story_id={story_id}&workflow_id={workflow_id}&platform={platform}"
 
@@ -215,56 +214,90 @@ class TelegramNotifier:
         else:
             await self._send_message(chat_id, "Please upload your media files or type `/done` to finish, `/cancel` to abort.", None)
 
-    async def handle_callback_query(self, callback_query: Dict):
-        """Handle all button clicks from inline keyboards"""
-        if not self.social_media_manager:
-            await self.answer_callback_query(callback_query["id"], "Social media manager not initialized")
-            return
+    async def send_selection_notification(self, headlines: List[Dict[str, Any]], workflow_id: str) -> Optional[int]:
+        """
+        Sends a clean, numbered list of headlines, followed by a grid of selection buttons.
+        This version correctly escapes all MarkdownV2 special characters.
+        """
+        if not headlines: return None
 
+        # --- FIX #1: The '!' in the title must be escaped with '\\' ---
+        message_text = "📢 **Top Headlines Found\\!**\n\nPlease select stories to investigate:\n\n"
+        story_map = {}
+        for i, story in enumerate(headlines, 1):
+            story_hash = str(abs(hash(story.get('original_title', story.get('headline')))))
+            story_map[i] = story_hash
+            
+            # --- FIX #2: The dynamic headline from the LLM must be escaped ---
+            escaped_headline = self._escape_markdown(story['headline'])
+            
+            # --- FIX #3: The '.' after the number must also be escaped ---
+            message_text += f"*{i}\\.* {escaped_headline}\n"
+        
+        # This first message will now send correctly
+        await self._send_message(self.chat_id, message_text)
+
+        # The button grid logic is fine, but we'll escape its title for safety too.
+        rows = []
+        buttons = []
+        for i in range(1, len(headlines) + 1):
+            story_hash = story_map[i]
+            buttons.append({"text": f"✅ {i}", "callback_data": f"select_{workflow_id}_{story_hash}"})
+            if len(buttons) == 5:
+                rows.append(buttons)
+                buttons = []
+        if buttons: rows.append(buttons)
+        
+        rows.append([{"text": "🚀 Select All", "callback_data": f"select_{workflow_id}_all"}])
+
+        reply_markup = {"inline_keyboard": rows}
+        # Escape the title of the second message as well for robustness
+        button_grid_title = self._escape_markdown("*Select stories for Gate 2 Investigation:*")
+        return await self._send_message(self.chat_id, button_grid_title, reply_markup)
+
+    async def handle_callback_query(self, callback_query: Dict):
+        """Handles all button clicks, including the special 'select_all' case."""
         callback_data = callback_query.get("data", "")
         print(f"🔄 Processing callback: {callback_data}")
-
         try:
             parts = callback_data.split("_")
-            action = "_".join(parts[:-2])
-            platform = parts[-2]
-            story_id = parts[-1]
+            action = parts[0]
 
-            print(f"📊 Parsed - Action: {action}, Platform: {platform}, Story: {story_id}")
-
-            if action == "upload_media":
-                await self._start_media_upload_session(callback_query, platform, story_id)
-            elif action == "done_upload":
-                await self._finish_upload_session(callback_query["message"]["chat"]["id"], self.user_states.get(callback_query["message"]["chat"]["id"]))
-                await self.answer_callback_query(callback_query["id"], "Upload complete!")
-            elif action == "cancel_upload":
-                await self._cancel_upload_session(callback_query["message"]["chat"]["id"], self.user_states.get(callback_query["message"]["chat"]["id"]))
-                await self.answer_callback_query(callback_query["id"], "Upload cancelled.")
-            else: # Handle approve/reject actions
-                # Re-parse for approve_all/decline_all which have a different structure
-                if len(parts) >= 2 and f"{parts[0]}_{parts[1]}" in ["approve_all", "decline_all", "reject_all"]:
-                     # Handle approve_all_story123, decline_all_story123, reject_all_story123
-                     action = f"{parts[0]}_{parts[1]}" # 'approve_all' or 'decline_all' or 'reject_all'
-                     # Story ID is the remaining parts joined back
-                     story_id = "_".join(parts[2:]) if len(parts) > 2 else ""
-                     platform = None # These actions apply to all platforms
-                     print(f"📊 Parsed All Action - Action: {action}, Story: {story_id}")
-                # Check for platform-specific actions (e.g., ['approve', 'twitter', 'story123'])
-                elif len(parts) >= 3 and parts[0] in ["approve", "reject", "decline"]:
-                    action = f"{parts[0]}_{parts[1]}" # e.g., 'approve_twitter'
-                    platform = parts[1] # e.g., 'twitter'
-                    # Story ID is the remaining parts joined back
-                    story_id = "_".join(parts[2:]) if len(parts) > 2 else ""
-                    print(f"📊 Parsed Platform Action - Action: {action}, Platform: {platform}, Story: {story_id}")
-                else:
-                    # Unrecognized action format
-                    print(f"❓ Unrecognized callback data format: {callback_data}")
-                    await self.answer_callback_query(callback_query["id"], "Unrecognized action.")
-                    return
-
-                await self.answer_callback_query(callback_query["id"], f"Processing '{action.replace('_', ' ').title()}'...")
-                await self.social_media_manager.handle_telegram_callback(story_id, platform, action)
+            if action == "select":
+                if not self.manager_agent: return
                 
+                workflow_id = "_".join(parts[1:-1])
+                story_identifier = parts[-1]
+
+                if story_identifier == "all":
+                    success = self.manager_agent.register_user_selection(workflow_id, "all")
+                    if success:
+                        await self.answer_callback_query(callback_query["id"], "✅ All stories selected!")
+                    else:
+                        await self.answer_callback_query(callback_query["id"], "⚠️ Selection failed.")
+                else: # Handle single story selection
+                    story_hash = story_identifier
+                    if self.manager_agent.register_user_selection(workflow_id, story_hash):
+                        await self.answer_callback_query(callback_query["id"], f"✅ Story Selected!")
+                    else:
+                        await self.answer_callback_query(callback_query["id"], "⚠️ Selection failed.")
+                return
+
+            if not self.social_media_manager:
+                await self.answer_callback_query(callback_query["id"], "Social Media Manager not initialized")
+                return
+            
+            story_id = parts[-1]
+            platform = None
+            action_str = "_".join(parts[:-1])
+            if action_str in ["approve_all", "decline_all"]:
+                action = action_str
+            elif parts[0] in ["approve", "reject", "decline"]:
+                action, platform = parts[0], parts[1]
+
+            await self.answer_callback_query(callback_query["id"], f"Processing '{action}'...")
+            await self.social_media_manager.handle_telegram_callback(story_id, platform, action)
+
         except Exception as e:
             print(f"❌ Error handling callback query: {e}")
             await self.answer_callback_query(callback_query["id"], "Error processing request")

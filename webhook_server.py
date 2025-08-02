@@ -35,6 +35,12 @@ async def handle_cloudinary_webhook(notification: CloudinaryUploadNotification):
     custom_context = notification.context.custom
     story_id = custom_context.get("story_id")
     platform = custom_context.get("platform")
+    workflow_id = custom_context.get("workflow_id")
+
+    print(f"  - Story ID: {story_id}")
+    print(f"  - Platform: {platform}")
+    print(f"  - Workflow ID: {workflow_id}")
+    print(f"  - Media URL: {notification.secure_url}")
     
     if not all([story_id, platform]):
         raise HTTPException(status_code=400, detail="Missing required fields (story_id, platform) in custom context")
@@ -46,7 +52,8 @@ async def handle_cloudinary_webhook(notification: CloudinaryUploadNotification):
         story_id=story_id,
         platform=platform,
         media_url=notification.secure_url,
-        resource_type=notification.resource_type
+        resource_type=notification.resource_type,
+        workflow_id=workflow_id
     )
     
     return {"status": "ok", "message": f"Processing initiated for {notification.public_id}"}

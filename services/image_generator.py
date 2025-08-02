@@ -39,7 +39,7 @@ class ImageGenerator:
         # place font files (e.g., Inter-Bold.ttf) in a 'fonts' folder and update paths.
         # Example for Linux: 'bold': [os.path.join('fonts', 'Inter-Bold.ttf')]
 
-    async def generate_social_image(self, headline: str, summary: str, story_id: str, platform: str) -> str:
+    async def generate_social_image(self, headline: str, summary: str, story_id: str, platform: str, workflow_id: str) -> str:
         """
         Generates an AI image, then applies the headline locally using the advanced
         Pillow function before uploading the final result.
@@ -72,10 +72,12 @@ class ImageGenerator:
             )
 
             # Step 3: Upload the final, processed image to Cloudinary
+            folder_path = f"news/processed/{workflow_id}/{story_id}/{platform}"
+            
             width, height = map(int, specs["dimensions"].split('x'))
             cloud_result = cloudinary.uploader.upload(
                 temp_output_path,
-                folder=f"news/{story_id}/{platform}",
+                folder=folder_path,
                 transformation=[
                     {"width": width, "height": height, "crop": "fill"},
                     {"quality": "auto:best", "format": "jpg"}
@@ -98,7 +100,8 @@ class ImageGenerator:
         story_id: str,
         platform: str,
         headline: str,
-        subheadline: str
+        subheadline: str,
+        workflow_id: str
     ) -> str:
         """
         Applies the advanced headline to a user-provided image and uploads to Cloudinary.
@@ -134,9 +137,11 @@ class ImageGenerator:
             specs = self.platform_specs.get(platform, self.platform_specs["instagram"])
             width, height = map(int, specs["dimensions"].split('x'))
             
+            folder_path = f"news/processed/{workflow_id}/{story_id}/{platform}"
+
             cloud_result = cloudinary.uploader.upload(
                 temp_output_path,
-                folder=f"news/{story_id}/{platform}",
+                folder=folder_path,
                 public_id=f"processed_{datetime.now().strftime('%Y%m%d%H%M%S')}",
                 transformation=[
                     {"width": width, "height": height, "crop": "fill"},

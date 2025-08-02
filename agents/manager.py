@@ -6,6 +6,8 @@ from core.token_manager import token_manager
 from services.telegram_bot import TelegramNotifier
 from typing import Dict, Any, List
 from datetime import datetime
+from config.settings import settings
+from utils.cloudinary_uploader import upload_json_to_cloudinary
 import asyncio
 import os
 import json
@@ -25,206 +27,117 @@ class ManagerAgent:
         }
         # Set SocialMediaManagerAgent on TelegramNotifier
         telegram_bot.set_social_media_manager(self.agents["social_media_manager"])
-        self.workflow_state = {}
+        telegram_bot.set_manager_agent(self)
         self.telegram_bot = telegram_bot  # Store for direct access
+        self.pending_workflows = {}
+        
+    def register_user_selection(self, workflow_id: str, story_hash: str) -> bool:
+        """
+        Called by the Telegram bot. Handles both single and 'all' story selections.
+        """
+        if workflow_id not in self.pending_workflows:
+            return False
 
+        if story_hash == "all":
+            all_stories = self.pending_workflows[workflow_id]['stories'].values()
+            self.pending_workflows[workflow_id]['selected'] = list(all_stories)
+            print(f"✅ User selected all {len(all_stories)} stories.")
+            return True
+
+        # Handle single story selection
+        if story_hash in self.pending_workflows[workflow_id]['stories']:
+            story = self.pending_workflows[workflow_id]['stories'][story_hash]
+            if story not in self.pending_workflows[workflow_id]['selected']:
+                self.pending_workflows[workflow_id]['selected'].append(story)
+                print(f"✅ User selected story: '{story['headline'][:50]}...'")
+                return True
+        
+        return False
+    
     async def execute_daily_workflow(self, posting_mode: str = "hitl") -> Dict[str, Any]:
-        """Execute complete daily news workflow with Script Writer and Social Media Manager"""
-        print("🎯 Manager: Starting daily news workflow with Script Writer and Social Media Manager...")
-        print("=" * 70)
-         
-        workflow_id = f"daily_{datetime.now().strftime('%d-%m-%y_%H-%M-%S')}"
-        workflow_result = {
-            "workflow_id": workflow_id,
-            "started_at": datetime.now().isoformat(),
-            "steps": [],
-            "final_output": {},
-            "total_cost": 0.0,
-            "total_tokens": 0
-        }
+        """Executes a two-gate HITL workflow with full, detailed reporting."""
+        print("🎯 Manager: Starting Two-Gate daily news workflow...")
+        workflow_id = f"workflow_{datetime.now().strftime('%d-%b-%Y_%H-%M-%S')}"
+        workflow_result = { "workflow_id": workflow_id, "started_at": datetime.now().isoformat(), "steps": [], "final_output": {}, "total_cost": 0.0, "total_tokens": 0 }
 
+        # --- Initialize variables to store results from each stage ---
+        final_headlines, selected_stories, investigation_reports, platform_scripts = [], [], [], []
+        hunter_result, detective_result, script_result, social_media_result = {}, {}, {}, {}
+        
         try:
-            # Step 1: News Hunter - Get structured headlines
-            print("\n🔄 Step 1: News Hunter - Gathering articles...")
+            # --- GATE 1: STORY SELECTION ---
+            print("\n🔄 Step 1: News Hunter - Gathering articles for selection...")
             hunter_result = await self.agents["news_hunter"].hunt_daily_news(max_articles_to_fetch=40)
+            final_headlines = hunter_result.get("top_headlines", [])
             
-            workflow_result["steps"].append({
-                "step": 1,
-                "agent": "news_hunter",
-                "status": "success" if hunter_result.get("success") else "failed",
-                "token_usage": hunter_result.get("token_usage", {}),
-                "articles_found": hunter_result.get("articles_processed", 0)
-            })
-
-            if not hunter_result.get("success"):
-                workflow_result["error"] = "News Hunter failed"
+            if not final_headlines:
+                print("GATE 1: News Hunter found no new headlines. Workflow ending.")
                 return workflow_result
 
-            final_headlines = hunter_result.get("top_headlines", [])
-            print(f"📊 News Hunter found {len(final_headlines)} headlines")
-            print(f"Top Headlines: {final_headlines}")
+            self.pending_workflows[workflow_id] = { 'stories': {str(abs(hash(h.get('original_title', h.get('headline'))))): h for h in final_headlines}, 'selected': [] }
+
+            timeout = settings.WORKFLOW_TIMING["hitl_selection_timeout_seconds"]
+            print(f"GATE 1: Presenting {len(final_headlines)} headlines for selection. Waiting for {timeout} seconds...")
+            await self.telegram_bot.send_selection_notification(final_headlines[:4], workflow_id)
+            await asyncio.sleep(timeout)
+            selected_stories = self.pending_workflows[workflow_id].get('selected', [])
             
-            # Send standalone Telegram notification for top headlines
-            if final_headlines:
-                message_id = await self.telegram_bot.send_headlines_notification(
-                    self.telegram_bot.chat_id,
-                    final_headlines
-                )
-                if message_id:
-                    print(f"📱 Sent Telegram notification for {len(final_headlines)} top headlines")
-                    workflow_result["steps"].append({
-                        "step": 1.5,
-                        "agent": "telegram_notifier",
-                        "status": "success",
-                        "description": "Sent standalone top headlines notification",
-                        "message_id": message_id
-                    })
-                else:
-                    print("❌ Failed to send Telegram notification for top headlines")
-                    workflow_result["steps"].append({
-                        "step": 1.5,
-                        "agent": "telegram_notifier",
-                        "status": "failed",
-                        "description": "Failed to send standalone top headlines notification"
-                    })
-            else:
-                print("⚠️ No headlines available for Telegram notification")
-                workflow_result["steps"].append({
-                    "step": 1.5,
-                    "agent": "telegram_notifier",
-                    "status": "skipped",
-                    "description": "No headlines available for notification"
-                })
+            if not selected_stories:
+                print("GATE 1: No stories selected by the user. Workflow ending.")
+                return workflow_result
 
-            # Step 2: Detective Agent - Investigate top stories
-            print("\n🔄 Step 2: Detective Agent - Investigating top stories...")
-            detective_result = await self.agents["detective"].investigate_top_stories(
-                final_headlines, max_stories=3
-            )
+            print(f"GATE 1: User selected {len(selected_stories)} stories. Proceeding...")
 
-            workflow_result["steps"].append({
-                "step": 2,
-                "agent": "detective",
-                "status": "success" if detective_result.get("success") else "failed",
-                "token_usage": detective_result.get("token_usage", {}),
-                "stories_investigated": detective_result.get("stories_investigated", 0)
-            })
+            # --- GATE 2: SCRIPTING & FINAL APPROVAL ---
+            print("\n🔄 Step 2: Detective Agent - Investigating selected stories...")
+            detective_result = await self.agents["detective"].investigate_top_stories(selected_stories, max_stories=len(selected_stories))
+            investigation_reports = detective_result.get("investigation_reports", [])
 
-            investigation_reports = []
-            if detective_result.get("success"):
-                investigation_reports = detective_result.get("investigation_reports", [])
-                print(f"🔍 Detective investigation {investigation_reports} stories")
-                print(f"✅ Detective completed investigation of {len(investigation_reports)} stories")
-            else:
-                print(f"⚠️ Detective investigation failed: {detective_result.get('error', 'Unknown error')}")
-
-            # Step 3: Script Writer Agent - Generate multi-platform scripts
-            print("\n🔄 Step 3: Script Writer - Generating multi-platform scripts...")
-            script_result = {"success": False, "platform_scripts": []}
-            
-            if investigation_reports:
-                script_result = await self.agents["script_writer"].generate_multi_platform_scripts(
-                    investigation_reports, max_stories=3
-                )
-                
-                workflow_result["steps"].append({
-                    "step": 3,
-                    "agent": "script_writer",
-                    "status": "success" if script_result.get("success") else "failed",
-                    "token_usage": script_result.get("token_usage", {}),
-                    "scripts_generated": script_result.get("scripts_generated", 0)
-                })
-
-                if script_result.get("success"):
-                    print(f"✅ Script Writer generated {script_result.get('scripts_generated', 0)} script packages")
-                else:
-                    print(f"⚠️ Script Writer failed: {script_result.get('error', 'Unknown error')}")
-            else:
-                print("⚠️ No investigation reports available for script generation")
-                workflow_result["steps"].append({
-                    "step": 3,
-                    "agent": "script_writer",
-                    "status": "skipped",
-                    "reason": "No investigation reports available"
-                })
-
-            # Step 4: Social Media Manager - Process scripts for posting
-            print("\n🔄 Step 4: Social Media Manager - Processing scripts for posting...")
-            social_media_result = {"success": False, "posts_processed": 0}
-            
+            print("\n🔄 Step 3: Script Writer - Generating scripts...")
+            script_result = await self.agents["script_writer"].generate_multi_platform_scripts(investigation_reports, max_stories=len(investigation_reports))
             platform_scripts = script_result.get("platform_scripts", [])
+
+            print("\n🔄 Step 4: Social Media Manager - Sending final scripts for approval...")
             if platform_scripts:
-                social_media_result = await self.agents["social_media_manager"].process_scripts_for_posting(
-                    platform_scripts, top_headlines=final_headlines, posting_mode=posting_mode
-                )
-                
-                workflow_result["steps"].append({
-                    "step": 4,
-                    "agent": "social_media_manager",
-                    "status": "success" if social_media_result.get("success") else "failed",
-                    "posts_processed": social_media_result.get("posts_processed", 0),
-                    "posts_pending": social_media_result.get("posts_pending", 0),
-                    "telegram_notifications": social_media_result.get("telegram_notifications_sent", 0)
-                })
+                social_media_result = await self.agents["social_media_manager"].process_scripts_for_posting(platform_scripts, workflow_id=workflow_id, posting_mode=posting_mode)
 
-                if social_media_result.get("success"):
-                    print(f"✅ Social Media Manager processed {social_media_result.get('posts_processed', 0)} posts")
-                    if posting_mode == "hitl":
-                        print(f"📱 Telegram notifications sent: {social_media_result.get('telegram_notifications_sent', 0)}")
-                else:
-                    print(f"⚠️ Social Media Manager failed: {social_media_result.get('error', 'Unknown error')}")
-            else:
-                print("⚠️ No platform scripts available for social media posting")
-                workflow_result["steps"].append({
-                    "step": 4,
-                    "agent": "social_media_manager",
-                    "status": "skipped",
-                    "reason": "No platform scripts available"
-                })
+            # --- RE-ADDED: Construct the detailed final output object ---
+            workflow_result["steps"] = [
+                {"step": 1, "agent": "news_hunter", "status": "success", "token_usage": hunter_result.get("token_usage", {}), "articles_found": hunter_result.get("articles_processed", 0)},
+                {"step": 2, "agent": "detective", "status": "success", "token_usage": detective_result.get("token_usage", {}), "stories_investigated": detective_result.get("stories_investigated", 0)},
+                {"step": 3, "agent": "script_writer", "status": "success", "token_usage": script_result.get("token_usage", {}), "scripts_generated": script_result.get("scripts_generated", 0)},
+                {"step": 4, "agent": "social_media_manager", "status": "success", "posts_processed": social_media_result.get("posts_processed", 0), "posts_pending": social_media_result.get("posts_pending", 0)}
+            ]
 
-            # Prepare final output
-            top_stories = [h for h in final_headlines if h.get("priority", 0) >= 7]
+            total_cost = sum(step["token_usage"].get("cost", 0) for step in workflow_result["steps"] if step.get("token_usage"))
+            total_tokens = sum(step["token_usage"].get("tokens", 0) for step in workflow_result["steps"] if step.get("token_usage"))
+            workflow_result["total_cost"] = total_cost
+            workflow_result["total_tokens"] = total_tokens
+            workflow_result["success"] = True
+
+            top_stories = [h for h in final_headlines if h.get("priority", 0) >= 8]
 
             workflow_result["final_output"] = {
                 "total_headlines": len(final_headlines),
                 "top_stories": len(top_stories),
+                "stories_selected_by_user": len(selected_stories),
                 "investigated_stories": len(investigation_reports),
                 "script_packages_generated": len(platform_scripts),
                 "social_media_posts_processed": social_media_result.get("posts_processed", 0),
                 "posts_pending_approval": social_media_result.get("posts_pending", 0),
                 "posting_mode": posting_mode,
-                "categories": self._get_category_breakdown(final_headlines),
                 "headlines": final_headlines,
                 "investigation_reports": investigation_reports,
                 "platform_scripts": platform_scripts,
                 "social_media_result": social_media_result,
-                "breaking_news": hunter_result.get("breaking_news", []),
-                "breaking_news_count": hunter_result.get("breaking_news_count", 0),
-                "ready_for_social_media_manager": script_result.get("ready_for_social_media_manager", False),
-                "content_ready_for_publishing": len(platform_scripts) > 0,
-                "telegram_notifications_sent": social_media_result.get("telegram_notifications_sent", 0) + (1 if final_headlines and message_id else 0),
-                "awaiting_user_approval": posting_mode == "hitl" and social_media_result.get("posts_pending", 0) > 0
+                "telegram_notifications_sent": social_media_result.get("telegram_notifications_sent", 0),
+                "awaiting_user_approval": social_media_result.get("posts_pending", 0) > 0
             }
 
-            # Calculate total costs
-            total_cost = 0
-            total_tokens = 0
-            for step in workflow_result["steps"]:
-                if "token_usage" in step and step["token_usage"]:
-                    total_cost += step["token_usage"].get("cost", 0)
-                    total_tokens += step["token_usage"].get("tokens", 0)
-
-            workflow_result["total_cost"] = total_cost
-            workflow_result["total_tokens"] = total_tokens
-            workflow_result["success"] = True
-
-            print(f"\n✅ Manager: Daily workflow completed!")
-            print(f"📊 Final stats: {len(final_headlines)} headlines, {len(investigation_reports)} investigated, {len(platform_scripts)} script packages")
-            print(f"📱 Social Media: {social_media_result.get('posts_processed', 0)} posts processed in {posting_mode.upper()} mode")
-            if posting_mode == "hitl":
-                print(f"⏳ Awaiting approval for {social_media_result.get('posts_pending', 0)} posts via Telegram")
-            print(f"💰 Total cost: ${total_cost:.4f} ({total_tokens} tokens)")
-            print(f"📈 Workflow Result: {json.dumps(workflow_result, indent=2)}")
+            print(f"\n✅ Manager: Two-Gate workflow completed!")
+            print(f"📊 Final stats: {len(final_headlines)} headlines found, {len(selected_stories)} selected, {len(platform_scripts)} scripted.")
+            print(f"💰 Total cost for this run: ${total_cost:.4f} ({total_tokens} tokens)")
+            
             return workflow_result
 
         except Exception as e:
@@ -232,6 +145,12 @@ class ManagerAgent:
             workflow_result["success"] = False
             print(f"❌ Manager: Workflow failed - {e}")
             return workflow_result
+        finally:
+            if workflow_id in self.pending_workflows:
+                del self.pending_workflows[workflow_id]
+            
+            # --- NEW: Upload the final result to Cloudinary, on success or failure ---
+            await upload_json_to_cloudinary(workflow_result, workflow_id)
 
     async def execute_breaking_news_workflow(self, posting_mode: str = "auto") -> Dict[str, Any]:
         """Execute breaking news workflow with immediate script generation and posting"""

@@ -13,11 +13,12 @@ class ApprovalQueue:
         self.timeout_minutes = settings.TELEGRAM_CONFIG["approval_timeout_minutes"]
         os.makedirs(self.storage_path, exist_ok=True)
 
-    def add_request(self, story_id: str, platform: str, content: str, sub_content: str, images: List[str], videos: List[str], message_ids: Dict[str, int], created_at: datetime) -> None:
+    def add_request(self, story_id: str, platform: str, workflow_id: str, content: str, sub_content: str, images: List[str], videos: List[str], message_ids: Dict[str, int], created_at: datetime) -> None:
         """Add a pending approval request to the queue, including sub_content."""
         request = {
             "story_id": story_id,
             "platform": platform,
+            "workflow_id": workflow_id,
             "content": content,
             "sub_content": sub_content,  # <-- Storing the summary for image overlays
             "images": images,

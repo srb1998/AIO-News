@@ -130,6 +130,7 @@ class ScriptWriterAgent:
             - Youtube dont use these keywords in the script OPENING_HOOK, CONTEXT_SETTING etc its just for reference
             - Instagram slides: Use {slides_count} slides based on story importance
             - Use provided visual needs for image suggestions
+            - Remember we are Indian news agency so have some Indian context in mind and current president of America is Trump.
 
             Respond with VALID JSON in this exact format:
 
@@ -139,7 +140,7 @@ class ScriptWriterAgent:
                 "carousel_slides": ["Provide Hook/Breaking news","Key facts/Context","Impact/Conclusion"],
                 "story_content": "15-20 words Instagram story text - factual statement",
                 "image_suggestions": [
-                  "Specific image suggestion 1,2,3 based on visual needs",
+                  "Specific image suggestion 1,2 based on visual needs",
                 ],
                 "estimated_engagement": "high/medium/low",
               }},

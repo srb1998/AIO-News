@@ -100,7 +100,7 @@ class LLMClient:
             print(f"❌ OpenAI embedding failed: {e}")
             return None
 
-    async def _generate_image_sync(self, prompt: str) -> bytes:
+    def _generate_image_sync(self, prompt: str) -> bytes:
         """
         Use Gemini 2.0-Flash to generate an image.
         Returns image bytes or empty bytes on failure.

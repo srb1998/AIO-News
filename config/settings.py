@@ -41,9 +41,7 @@ class Settings:
         ]
         
         # Enhanced Breaking News Time Window (hours)
-        self.BREAKING_NEWS_TIME_WINDOW = int(os.getenv("BREAKING_NEWS_TIME_WINDOW", 4))
-
-        self.HITL_SELECTION_TIMEOUT_SECONDS = 300
+        self.BREAKING_NEWS_TIME_WINDOW = int(os.getenv("BREAKING_NEWS_TIME_WINDOW", 4)) 
 
         # News Sources (RSS Feeds - FREE!)
         self.RSS_SOURCES = [
@@ -91,13 +89,14 @@ class Settings:
             "service_status_check_interval": 5 * 60,  # 5 minutes for status updates
             "posting_scheduler_interval_seconds": 2 * 60, # Check for approved posts every 2 minutes
             "min_posting_delay_seconds": 10 * 60, # Minimum 10 minutes between posts
-            "max_posting_delay_seconds": 25 * 60
+            "max_posting_delay_seconds": 25 * 60,
+            "hitl_selection_timeout_seconds": 60 # 1 min timeout for HITL selection
         }
 
         # Telegram Configuration (for Phase 2)
         self.TELEGRAM_CONFIG = {
             "polling_interval_seconds": 2,
-            "approval_timeout_minutes": 30,
+            "approval_timeout_minutes": 2,
             "approval_storage_path": "data/approvals/",
             "images_storage_path": "data/outputs/images/",
             "videos_storage_path": "data/outputs/videos/",
