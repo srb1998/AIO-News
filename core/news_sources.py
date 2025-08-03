@@ -84,11 +84,11 @@ class NewsSourceManager:
         print(f"\n🔄 Processing {len(all_articles)} total articles...")
         
         # Remove duplicates
-        unique_articles = self._deduplicate_articles(all_articles)
-        print(f"📝 After deduplication: {len(unique_articles)} unique articles")
+        # unique_articles = self._deduplicate_articles(all_articles)
+        # print(f"📝 After deduplication: {len(unique_articles)} unique articles")
         
         # Sort by priority and freshness
-        sorted_articles = self._sort_articles_by_priority(unique_articles)
+        sorted_articles = self._sort_articles_by_priority(all_articles)
         limited_and_sorted_articles = sorted_articles[:max_articles]
 
         print(f"✅ Final result: {len(limited_and_sorted_articles)} articles ready for processing")

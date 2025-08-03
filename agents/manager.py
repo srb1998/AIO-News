@@ -150,7 +150,10 @@ class ManagerAgent:
                 del self.pending_workflows[workflow_id]
             
             # --- NEW: Upload the final result to Cloudinary, on success or failure ---
-            await upload_json_to_cloudinary(workflow_result, workflow_id)
+            summary_url = await upload_json_to_cloudinary(workflow_result, workflow_id)
+            if summary_url:
+                await self.telegram_bot.send_workflow_summary_notification(workflow_id, summary_url)
+                
 
     async def execute_breaking_news_workflow(self, posting_mode: str = "auto") -> Dict[str, Any]:
         """Execute breaking news workflow with immediate script generation and posting"""

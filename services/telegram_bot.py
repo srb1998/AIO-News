@@ -252,8 +252,31 @@ class TelegramNotifier:
 
         reply_markup = {"inline_keyboard": rows}
         # Escape the title of the second message as well for robustness
-        button_grid_title = self._escape_markdown("*Select stories for Gate 2 Investigation:*")
+        button_grid_title = self._escape_markdown("Select stories for Gate 2:")
+        button_grid_title = f"*{button_grid_title}*"
+        
         return await self._send_message(self.chat_id, button_grid_title, reply_markup)
+
+    async def send_workflow_summary_notification(self, workflow_id: str, summary_url: str):
+        """
+        Sends a Telegram message with a direct link to the uploaded workflow summary JSON.
+        """
+        if not summary_url:
+            print("⚠️ Workflow summary URL is empty, skipping Telegram notification.")
+            return
+
+        # Create a message with a Markdown-formatted link
+        message = (
+            f"✅ *Workflow Run Complete*\n\n"
+            f"🔗 [Click here to view the full JSON summary]({summary_url})"
+        )
+
+        try:
+            await self._send_message(self.chat_id, message)
+            print(f"📱 Sent workflow summary notification for {workflow_id}")
+        except Exception as e:
+            print(f"❌ Failed to send workflow summary notification: {e}")
+
 
     async def handle_callback_query(self, callback_query: Dict):
         """Handles all button clicks, including the special 'select_all' case."""
@@ -423,8 +446,6 @@ class TelegramNotifier:
         except Exception as e:
             print(f"❌ Download error: {e}")
             return None
-
-    # ... (other methods like _send_message, update_message, answer_callback_query, start_polling, close remain largely the same)
     async def _send_message(self, chat_id: str, text: str, reply_markup: Optional[Dict] = None) -> Optional[int]:
         if not self._session: self._session = aiohttp.ClientSession()
         payload = {"chat_id": chat_id, "text": text, "parse_mode": "MarkdownV2"}

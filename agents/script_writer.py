@@ -139,9 +139,7 @@ class ScriptWriterAgent:
                 "slides_count": {slides_count},
                 "carousel_slides": ["Provide Hook/Breaking news","Key facts/Context","Impact/Conclusion"],
                 "story_content": "15-20 words Instagram story text - factual statement",
-                "image_suggestions": [
-                  "Specific image suggestion 1,2 based on visual needs",
-                ],
+                "music_suggestions": ["Latest 2025 current background music suggestion 1"," 2"],
                 "estimated_engagement": "high/medium/low",
               }},
               "twitter": {{
@@ -152,14 +150,15 @@ class ScriptWriterAgent:
               }},
               "youtube": {{
                 "full_script": "Provide OPENING_HOOK: [15-second attention grabber] + CONTEXT_SETTING: [30-second background] + CORE_ANALYSIS: [90-second detailed analysis] + IMPACT_ASSESSMENT: [30-second implications] + 
-                    CLOSING: [15-second wrap-up with proper ending], Complete anchor script Include [pause], [serious], [emphasis], [slight smile] cues. Make valid script like journalist Palki Sharma style. and human-like simple tone.",
+                    CLOSING: [15-second wrap-up with proper ending], Complete anchor script Include cues. Make valid script like journalist Palki Sharma style. and human-like simple tone. Please have correct information",
                 "estimated_duration": "2-4 minutes",
                 "image_suggestions": [
                   "B-roll footage suggestion 1",
                   "Graphics needed for explanation",
                   "Background visuals for key points"
                 ],
-                "anchor_personality": "professional_authoritative"
+                "anchor_personality": "serious_professional",
+                "teleprompter_ready": true
               }}
             }}
 

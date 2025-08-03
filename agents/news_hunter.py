@@ -82,7 +82,7 @@ class NewsHunterAgent:
             articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
-        You are an extremely fast news curator. Your only job is to rank articles by their potential to be viral or interesting.
+        You are an extremely fast news curator. Your only job is to rank articles by their potential to be viral or interesting and priority.
         Read these {len(articles)} articles. Based on the title and description, assign a 'viral_score' from 1-10.
         A high score means the story sounds shocking, emotionally engaging, or highly unusual or Amazing news.
 
@@ -122,19 +122,20 @@ class NewsHunterAgent:
             articles_text += f"Article {i}:\nOriginal Title: {article['title']}\nSource: {article['source']}\nURL: {article['url']}\nDescription: {article['description'][:250]}...\n---\n"
         
         prompt = f"""
-        You are the lead editor for news agency, a digital news outlet famous for its edgy, highly-engaging, and easy-to-understand content for a young, internet-savvy audience. 
-        Your goal is to get clicks, but NEVER at the expense of clarity. The reader must understand the core of the story from the headline alone.
+        You are the lead editor for 'ViralFeed', a digital news outlet famous for its edgy, highly-engaging, and easy-to-understand content for a young, internet-savvy audience. 
+            Your goal is to get clicks, but NEVER at the expense of clarity. 
+            The reader must understand the core of the story from the headline alone.
 
-        **Style Guide:**
-        1.  **Clarity First:** The headline MUST provide context.
-        2.  **Simple Language:** Use everyday English.
-        3.  **Emotion & Conflict:** Frame stories around human elements.
-        4.  **The "Why" Factor:** Your summary must answer "Why should I care?".
+            **Your Style Guide:**
+            1.  **Clarity First, Clickbait Second:** The headline MUST provide enough context for the reader to understand what the story is about. It should be intriguing, not confusing.
+            2.  **Simple, Powerful Language:** Use everyday English. Avoid jargon.
+            3.  **Inject Emotion & Conflict:** Frame stories around human elements: conflict, surprise, outrage, humor, or shock.
+            4.  **The "Why" Factor:** Your summary must answer "Why should I care?" in 1-2 punchy sentences.
 
-        **Example:**
-        - **Original:** "Air India Express operations affected..."
-        - **BAD:** "Air India Pilots Are SCARED?..."
-        - **GOOD:** "Mass 'Sick-Out' at Air India GROUNDS 80+ Flights After Crash - What's Really Happening?"
+            **Crucial Example of What to Do (and Not Do):**
+            - **Original Boring Headline:** "Air India Express operations affected as crew members report sick"
+            - **BAD Viral Headline:** "Air India Pilots Are SCARED? Mass Sick Calls After HORRIFIC Crash!" (This is too vague, lacks context about the *consequence*.)
+            - **GOOD Viral Headline:** "Mass 'Sick-Out' at Air India GROUNDS 80+ Flights After Crash - What's Really Happening?" (This is perfect. It has emotion, context (flights grounded), and a question to drive engagement.)
 
         **Your Task:**
         Analyze these {len(articles)} articles. Return ONLY a valid JSON object.

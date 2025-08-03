@@ -90,13 +90,13 @@ class Settings:
             "posting_scheduler_interval_seconds": 2 * 60, # Check for approved posts every 2 minutes
             "min_posting_delay_seconds": 10 * 60, # Minimum 10 minutes between posts
             "max_posting_delay_seconds": 25 * 60,
-            "hitl_selection_timeout_seconds": 60 # 1 min timeout for HITL selection
+            "hitl_selection_timeout_seconds": 300 # 5 min timeout for HITL selection
         }
 
         # Telegram Configuration (for Phase 2)
         self.TELEGRAM_CONFIG = {
             "polling_interval_seconds": 2,
-            "approval_timeout_minutes": 2,
+            "approval_timeout_minutes": 30,
             "approval_storage_path": "data/approvals/",
             "images_storage_path": "data/outputs/images/",
             "videos_storage_path": "data/outputs/videos/",

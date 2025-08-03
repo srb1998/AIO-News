@@ -29,7 +29,7 @@ class LLMClient:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     max_output_tokens=max_tokens,
-                    temperature=0.80
+                    temperature=0.90
                 )
             )
             
