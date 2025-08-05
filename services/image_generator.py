@@ -1,5 +1,6 @@
 import asyncio
 import os
+import platform
 import cloudinary
 import cloudinary.uploader
 import aiohttp
@@ -24,20 +25,44 @@ class ImageGenerator:
             "twitter": {"aspect_ratio": "16:9", "dimensions": "1200x675"},
             "youtube": {"aspect_ratio": "16:9", "dimensions": "1280x720"}
         }
+
+        current_os = platform.system()
+
         # Using your new, more robust font finding logic
-        self.font_paths = {
-            'bold': [
-                "C:/Windows/Fonts/verdanab.ttf", "C:/Windows/Fonts/arialbd.ttf",
-                "C:/Windows/Fonts/calibrib.ttf", "C:/Windows/Fonts/arial.ttf"
-            ],
-            'regular': [
-                "C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/calibri.ttf",
-                "C:/Windows/Fonts/verdana.ttf"
-            ]
-        }
-        # Note: For non-Windows environments (like a Linux server), you'll need to
-        # place font files (e.g., Inter-Bold.ttf) in a 'fonts' folder and update paths.
-        # Example for Linux: 'bold': [os.path.join('fonts', 'Inter-Bold.ttf')]
+        if current_os == "Windows":
+            self.font_paths = {
+                'bold': [
+                    "C:/Windows/Fonts/verdanab.ttf", 
+                    "C:/Windows/Fonts/arialbd.ttf",
+                    "C:/Windows/Fonts/calibrib.ttf", 
+                    "C:/Windows/Fonts/arial.ttf"
+                ],
+                'regular': [
+                    "C:/Windows/Fonts/arial.ttf", 
+                    "C:/Windows/Fonts/calibri.ttf",
+                    "C:/Windows/Fonts/verdana.ttf"
+                ]
+            }
+        else:  # Linux/Unix (Railway environment)
+            # Use fonts from your project's fonts folder
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            fonts_dir = os.path.join(base_dir, "fonts")
+            
+            self.font_paths = {
+                'bold': [
+                    os.path.join(fonts_dir, "Vatena.otf"),
+                    os.path.join(fonts_dir, "Inter-Bold.ttf"),
+                    # Fallback to system fonts on Linux
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+                ],
+                'regular': [
+                    os.path.join(fonts_dir, "ChivoMono.ttf"),
+                    # Fallback to system fonts on Linux
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+                ]
+            }
 
     async def generate_social_image(self, headline: str, summary: str, story_id: str, platform: str, workflow_id: str) -> str:
         """
