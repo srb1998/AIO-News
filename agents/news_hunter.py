@@ -82,10 +82,10 @@ class NewsHunterAgent:
             articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
-        You are an extremely fast news curator. Your only job is to rank articles by their potential to be viral or interesting and priority.
+        You are an extremely fast news curator. Your job is to rank articles by their potential to be viral or interesting and importance.
         Read these {len(articles)} articles. Based on the title and description, assign a 'viral_score' from 1-10.
-        A high score means the story sounds shocking, emotionally engaging, or highly unusual or Amazing news.
-
+        A high score means the story is important and can be viral, and effect or shook people mostly we have Indian audience.
+        But we need high score for important world news that is shocking or amazing world news that is highly unusual.
         Article Titles and Descriptions:\n{articles_text}
 
         Return ONLY a valid JSON object with a single key "ranked_articles".
@@ -120,17 +120,17 @@ class NewsHunterAgent:
         articles_text = ""
         for i, article in enumerate(articles, 1):
             articles_text += f"Article {i}:\nOriginal Title: {article['title']}\nSource: {article['source']}\nURL: {article['url']}\nDescription: {article['description'][:250]}...\n---\n"
+
+            # Removed 4.  **The "Why" Factor:** Your summary must answer "Why should I care?" in 1-2 punchy sentences.
         
         prompt = f"""
-        You are the lead editor for 'ViralFeed', a digital news outlet famous for its edgy, highly-engaging, and easy-to-understand content for a young, internet-savvy audience. 
-            Your goal is to get clicks, but NEVER at the expense of clarity. 
+        You are the lead editor for 'ViralFeed', a digital news outlet famous for its edgy, highly-engaging, and easy-to-understand content for a young, internet-savvy audience.
             The reader must understand the core of the story from the headline alone.
 
             **Your Style Guide:**
-            1.  **Clarity First, Clickbait Second:** The headline MUST provide enough context for the reader to understand what the story is about. It should be intriguing, not confusing.
-            2.  **Simple, Powerful Language:** Use everyday English. Avoid jargon.
+            1.  **Clarity First:** The headline MUST provide proper idea for the reader to understand what the story is about. Add very little amount of Humour. It should give proper context and not be confusing.
+            2.  **Simple, Powerful Language:** Use basic English to Indian audiences with human like tone and should not feel ai generated. Avoid jargon.
             3.  **Inject Emotion & Conflict:** Frame stories around human elements: conflict, surprise, outrage, humor, or shock.
-            4.  **The "Why" Factor:** Your summary must answer "Why should I care?" in 1-2 punchy sentences.
 
             **Crucial Example of What to Do (and Not Do):**
             - **Original Boring Headline:** "Air India Express operations affected as crew members report sick"
@@ -142,7 +142,7 @@ class NewsHunterAgent:
         {{
             "top_headlines": [
                 {{
-                    "headline": "Your new viral headline.",
+                    "headline": "Your viral headline.",
                     "summary": "Your punchy summary.",
                     "priority": 9,
                     "category": "World News",

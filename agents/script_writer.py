@@ -15,7 +15,7 @@ class ScriptWriterAgent:
         self.templates = self._load_templates()
 
     async def generate_multi_platform_scripts(self, investigation_reports: List[Dict[str, Any]], 
-                                      max_stories: int = 3) -> Dict[str, Any]:
+                                      max_stories: int = 5) -> Dict[str, Any]:
         """
         Generate scripts for all platforms from detective investigation reports
         Uses smart batching to minimize token usage
@@ -137,9 +137,8 @@ class ScriptWriterAgent:
             {{
               "instagram": {{
                 "slides_count": {slides_count},
-                "carousel_slides": ["Provide Hook/Breaking news","Key facts/Context","Impact/Conclusion"],
-                "story_content": "15-20 words Instagram story text - factual statement",
-                "music_suggestions": ["Latest 2025 current background music suggestion 1"," 2"],
+                "story_content": ""Provide Hook/Breaking news starting","Key facts/Context","Impact/Conclusion"",
+                "music_suggestions": ["Latest trending 2025 background music suggestion 1"," 2"],
                 "estimated_engagement": "high/medium/low",
               }},
               "twitter": {{
@@ -150,7 +149,7 @@ class ScriptWriterAgent:
               }},
               "youtube": {{
                 "full_script": "Provide OPENING_HOOK: [15-second attention grabber] + CONTEXT_SETTING: [30-second background] + CORE_ANALYSIS: [90-second detailed analysis] + IMPACT_ASSESSMENT: [30-second implications] + 
-                    CLOSING: [15-second wrap-up with proper ending], Complete anchor script Include cues. Make valid script like journalist Palki Sharma style. and human-like simple tone. Please have correct information",
+                    CLOSING: [15-second wrap-up with proper ending], Complete anchor script dont include any cues in script. Make pro Indian script like journalist Palki Sharma style. and human-like simple tone. Please have correct information",
                 "estimated_duration": "2-4 minutes",
                 "image_suggestions": [
                   "B-roll footage suggestion 1",
@@ -162,7 +161,10 @@ class ScriptWriterAgent:
               }}
             }}
 
-            Remember: Definitive conclusions and don't include any other news channel name.
+            Remember: 
+            - Definitive conclusions and don't include any other news channel name.
+            - Use simple and clear language suitable for a wide audience and avoid jargon and use human like tone.
+
             """
 
     def _determine_slides_count(self, importance_score: int, summary_length: int) -> int:
@@ -201,7 +203,7 @@ class ScriptWriterAgent:
                 ig_data = parsed_data["instagram"]
                 scripts["instagram"] = {
                     "slides_count": ig_data.get("slides_count", 2),
-                    "carousel_slides": ig_data.get("carousel_slides", [])[:ig_data.get("slides_count", 2)],
+                    "music_suggestions": ig_data.get("music_suggestions", []),
                     "story_content": ig_data.get("story_content", ""),
                     "image_suggestions": self._merge_visual_suggestions(
                         story.get("visual_needs", []),

@@ -1,4 +1,4 @@
-# social_media_manager.py
+# social_media_manager.py - Updated with real Instagram posting
 
 import asyncio
 import os
@@ -7,6 +7,7 @@ import cloudinary.uploader
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from services.telegram_bot import TelegramNotifier
+from services.social_platforms import SocialPlatformManager  # NEW IMPORT
 from core.approval_queue import ApprovalQueue
 from config.settings import settings
 from services.image_generator import ImageGenerator
@@ -26,6 +27,9 @@ class SocialMediaManagerAgent:
         self.platforms = ["twitter", "instagram", "youtube"]
         self.chat_id = settings.SERVICE_CONFIG.get("telegram_chat_id", "YOUR_CHAT_ID")
         self.max_media_per_post = 10
+        
+        # NEW: Initialize real social platform posting
+        self.social_platform_manager = SocialPlatformManager()
     
     async def handle_webhook_upload(self, story_id: str, platform: str, media_url: str, resource_type: str, workflow_id: str):
         """
@@ -63,7 +67,6 @@ class SocialMediaManagerAgent:
         print(f"✅ Media for {platform}/{story_id} updated in queue.")
 
     async def process_scripts_for_posting(self, script_packages: List[Dict], workflow_id: str, posting_mode: str = "hitl") -> Dict:
-
         results = {"success": True, "posts_processed": 0, "posts_pending": 0, "telegram_notifications_sent": 0, "errors": []}
         for script_package in script_packages:
             story_result = await self._process_single_story_package(script_package, workflow_id)
@@ -215,12 +218,58 @@ class SocialMediaManagerAgent:
         await self.telegram_bot.update_message(self.chat_id, request["message_ids"].get(platform), success_msg, {"inline_keyboard": []})
 
     async def _execute_approved_post(self, story_id: str, platform: str):
+        """UPDATED: Now uses real social platform posting instead of dummy implementation"""
         request = self.approval_queue.get_request(story_id, platform)
-        if request and request["status"] == "APPROVED":
-            success = await self._post_to_platform(platform, request["content"], request["images"], request["videos"])
-            status = "POSTED" if success else "FAILED"
-            self.approval_queue.update_status(story_id, platform, status)
-            print(f"Post execution for {story_id} on {platform} finished with status: {status}")
+        if not request or request["status"] != "APPROVED":
+            return
+
+        # Extract content and media
+        content = request["content"]
+        images = request.get("images", [])
+        videos = request.get("videos", [])
+
+        print(f"🚀 REAL POSTING to {platform.upper()}:")
+        print(f"   Content: {content[:100]}...")
+        print(f"   Images: {len(images)} files")
+        print(f"   Videos: {len(videos)} files")
+
+        try:
+            # Use the real social platform manager
+            success = await self.social_platform_manager.post_to_platform(
+                platform=platform,
+                images=images,
+                videos=videos,
+                content=content
+            )
+            
+            if success:
+                self.approval_queue.update_status(story_id, platform, "POSTED")
+                print(f"✅ Successfully posted story {story_id} to {platform}")
+                
+                # Send success notification to Telegram
+                msg_id = request["message_ids"].get(platform)
+                if msg_id:
+                    success_msg = self.telegram_bot._escape_markdown(f"🎉 Successfully posted to {platform.capitalize()}! (Story {story_id})")
+                    await self.telegram_bot.update_message(self.chat_id, msg_id, success_msg, {"inline_keyboard": []})
+            else:
+                self.approval_queue.update_status(story_id, platform, "FAILED")
+                print(f"❌ Failed to post story {story_id} to {platform}")
+                
+                # Send failure notification to Telegram
+                msg_id = request["message_ids"].get(platform)
+                if msg_id:
+                    fail_msg = self.telegram_bot._escape_markdown(f"❌ Failed to post to {platform.capitalize()} (Story {story_id})")
+                    await self.telegram_bot.update_message(self.chat_id, msg_id, fail_msg, {"inline_keyboard": []})
+
+        except Exception as e:
+            print(f"❌ Exception while posting to {platform}: {e}")
+            self.approval_queue.update_status(story_id, platform, "FAILED")
+            
+            # Send error notification to Telegram
+            msg_id = request["message_ids"].get(platform)
+            if msg_id:
+                error_msg = self.telegram_bot._escape_markdown(f"❌ Error posting to {platform.capitalize()}: {str(e)[:50]}...")
+                await self.telegram_bot.update_message(self.chat_id, msg_id, error_msg, {"inline_keyboard": []})
 
     async def check_timeouts(self):
         for request in self.approval_queue.get_timed_out_requests():
@@ -234,18 +283,30 @@ class SocialMediaManagerAgent:
             await self.telegram_bot.update_message(self.chat_id, msg_id, msg, {"inline_keyboard": []})
             await self._handle_approval(story_id, platform)
 
-    async def _post_to_platform(self, platform: str, content: str, images: List[str], videos: List[str]) -> bool:
-        print(f"POSTING to {platform.upper()}:\nContent: {content[:100]}...\nImages: {images}\nVideos: {videos}")
-        await asyncio.sleep(2)
-        print(f"Successfully posted to {platform}.")
-        return True
+    # REMOVED: Old dummy _post_to_platform method - now using real implementation in _execute_approved_post
 
     def get_posting_status(self) -> Dict:
+        """Enhanced status including social platform limits"""
         pending = self.approval_queue.get_all_pending()
+        
+        # Get platform status (async call wrapped)
+        platform_status = {}
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If we're in an async context, we can't call get_all_status directly
+                platform_status = {"note": "Platform limits available via separate API call"}
+            else:
+                platform_status = loop.run_until_complete(self.social_platform_manager.get_all_status())
+        except:
+            platform_status = {"error": "Could not fetch platform status"}
+        
         return {
             "total_requests": len(self.approval_queue.queue),
             "pending_approval": len(pending),
             "platforms_configured": self.platforms,
+            "social_platforms": platform_status
         }
 
     async def get_story_details(self, story_id: str) -> Optional[Dict]:
@@ -253,3 +314,11 @@ class SocialMediaManagerAgent:
         if request:
             return {"content": request["content"], "sub_content": request.get("sub_content", "")}
         return None
+    
+    async def get_platform_status(self) -> Dict:
+        """Get detailed platform status including posting limits"""
+        return await self.social_platform_manager.get_all_status()
+    
+    async def close(self):
+        """Clean up resources"""
+        await self.social_platform_manager.close_all_sessions()
