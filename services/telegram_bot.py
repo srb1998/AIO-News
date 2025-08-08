@@ -62,7 +62,7 @@ class TelegramNotifier:
     async def send_approval_notification(
         self, story_id: str, workflow_id: str, platforms: List[str], content: str,
         image_suggestions: List[str] = None,
-        twitter_content: str = "", instagram_content: str = ""
+        twitter_content: str = "", instagram_content: str = "", music_suggestions: List[str] = None
     ) -> Dict[str, int]:
         """Send approval notification with platform-specific media upload buttons"""
         message_ids = {}
@@ -73,6 +73,7 @@ class TelegramNotifier:
             f"📜 *APPROVAL: Story {story_id}*\n\n"
             f"*Headline:* `{self._escape_markdown(content)}`\n\n"
             f"*Instagram Post:*\n`{self._escape_markdown(instagram_content or 'N/A')}`\n\n"
+            f"*Music Suggestions:*\n{self._escape_markdown(', '.join(music_suggestions) or 'N/A')}\n\n"
             f"*Twitter Post:*\n`{self._escape_markdown(twitter_content or 'N/A')}`\n\n"
             f"*Image Suggestions:*\n{suggestions_text}\n"
         )
@@ -221,20 +222,16 @@ class TelegramNotifier:
         """
         if not headlines: return None
 
-        # --- FIX #1: The '!' in the title must be escaped with '\\' ---
         message_text = "📢 **Top Headlines Found\\!**\n\nPlease select stories to investigate:\n\n"
         story_map = {}
         for i, story in enumerate(headlines, 1):
             story_hash = str(abs(hash(story.get('original_title', story.get('headline')))))
             story_map[i] = story_hash
             
-            # --- FIX #2: The dynamic headline from the LLM must be escaped ---
             escaped_headline = self._escape_markdown(story['headline'])
             
-            # --- FIX #3: The '.' after the number must also be escaped ---
             message_text += f"*{i}\\.* {escaped_headline}\n"
         
-        # This first message will now send correctly
         await self._send_message(self.chat_id, message_text)
 
         # The button grid logic is fine, but we'll escape its title for safety too.

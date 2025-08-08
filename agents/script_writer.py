@@ -137,7 +137,7 @@ class ScriptWriterAgent:
             {{
               "instagram": {{
                 "slides_count": {slides_count},
-                "story_content": ""Provide Hook/Breaking news starting","Key facts/Context","Impact/Conclusion"",
+                "story_content": "Summarize the story by presenting key facts, relevant context, the impact, and a definitive conclusion.",
                 "music_suggestions": ["Latest trending 2025 background music suggestion 1"," 2"],
                 "estimated_engagement": "high/medium/low",
               }},
@@ -203,6 +203,7 @@ class ScriptWriterAgent:
                 ig_data = parsed_data["instagram"]
                 scripts["instagram"] = {
                     "slides_count": ig_data.get("slides_count", 2),
+                    "insta_headline": story.get("original_headline", ""),
                     "music_suggestions": ig_data.get("music_suggestions", []),
                     "story_content": ig_data.get("story_content", ""),
                     "image_suggestions": self._merge_visual_suggestions(
