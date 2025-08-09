@@ -25,42 +25,56 @@ class ImageGenerator:
             "twitter": {"aspect_ratio": "16:9", "dimensions": "1200x675"},
             "youtube": {"aspect_ratio": "16:9", "dimensions": "1280x720"}
         }
-
+    
         current_os = platform.system()
-
-        # Using your new, more robust font finding logic
+    
+        # Get the src directory (parent of services folder)
+        current_file_dir = os.path.dirname(os.path.abspath(__file__))  # services folder
+        src_dir = os.path.dirname(current_file_dir)  # src folder
+        fonts_dir = os.path.join(src_dir, "fonts")
+        
+        print(f"🔍 Looking for fonts in: {fonts_dir}")
+        print(f"📁 Fonts directory exists: {os.path.exists(fonts_dir)}")
+        
+        if os.path.exists(fonts_dir):
+            font_files = os.listdir(fonts_dir)
+            print(f"📂 Found font files: {font_files}")
+    
         if current_os == "Windows":
             self.font_paths = {
                 'bold': [
+                    os.path.join(fonts_dir, "Inter-Bold.ttf"),
+                    os.path.join(fonts_dir, "Vatena.otf"),
                     "C:/Windows/Fonts/verdanab.ttf", 
                     "C:/Windows/Fonts/arialbd.ttf",
                     "C:/Windows/Fonts/calibrib.ttf", 
                     "C:/Windows/Fonts/arial.ttf"
                 ],
                 'regular': [
+                    os.path.join(fonts_dir, "ChivoMono.ttf"),
+                    os.path.join(fonts_dir, "Inter-Regular.ttf"),
                     "C:/Windows/Fonts/arial.ttf", 
                     "C:/Windows/Fonts/calibri.ttf",
                     "C:/Windows/Fonts/verdana.ttf"
                 ]
             }
         else:  # Linux/Unix (Railway environment)
-            # Use fonts from your project's fonts folder
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            fonts_dir = os.path.join(base_dir, "fonts")
-            
             self.font_paths = {
                 'bold': [
-                    os.path.join(fonts_dir, "Vatena.otf"),
                     os.path.join(fonts_dir, "Inter-Bold.ttf"),
-                    # Fallback to system fonts on Linux
+                    os.path.join(fonts_dir, "Vatena.otf"),
+                    # Fallback to system fonts
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                    "/System/Library/Fonts/Arial.ttf"  # macOS fallback
                 ],
                 'regular': [
                     os.path.join(fonts_dir, "ChivoMono.ttf"),
-                    # Fallback to system fonts on Linux
+                    os.path.join(fonts_dir, "Inter-Regular.ttf"),
+                    # Fallback to system fonts
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                    "/System/Library/Fonts/Arial.ttf"  # macOS fallback
                 ]
             }
 
