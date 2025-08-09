@@ -97,7 +97,7 @@ class NewsHunterAgent:
                 continue
                 
             # Use a stricter threshold for pre-filtering (only very similar stories)
-            if not self.semantic_cache.is_story_similar(embedding, threshold=0.3):
+            if not self.semantic_cache.is_story_similar(embedding, threshold=0.4):
                 filtered_articles.append(article)
             else:
                 print(f"🔄 Pre-filter: Skipping cached story: '{article['title'][:50]}...'")
