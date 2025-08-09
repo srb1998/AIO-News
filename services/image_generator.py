@@ -199,9 +199,9 @@ class ImageGenerator:
                     os.remove(p)
 
     def add_professional_headline(
-    self, image_path: str, output_path: str, headline: str, subheadline: str = None,
-    max_width_ratio: float = 0.9, base_font_size: int = 60, highlight_color: str = "#FF0000"
-):
+        self, image_path: str, output_path: str, headline: str, subheadline: str = None,
+        max_width_ratio: float = 0.9, base_font_size: int = 60, highlight_color: str = "#FF0000"
+    ):
         """
         Fixed headline generation with proper font scaling.
         """
@@ -214,39 +214,39 @@ class ImageGenerator:
                     continue
             print("⚠️ Custom fonts not found, using default.")
             return ImageFont.load_default()
-    
+
         # Load base image
         img = Image.open(image_path).convert("RGBA")
         W, H = img.size
         max_width = int(W * max_width_ratio)
         draw = ImageDraw.Draw(img, "RGBA")
-    
+
         # FIXED FONT SIZE SCALING - Use larger base size and better scaling
         # Scale based on image width, with minimum size limits
         font_size = max(int(base_font_size * (W / 1080)), 45)  # Minimum 45px
         if W < 800:  # For smaller images, use even larger relative size
             font_size = max(int(W * 0.08), 50)  # 8% of width, min 50px
-        
+
         print(f"🔤 Image size: {W}x{H}, Using font size: {font_size}px")
-        
+
         font_bold = get_font(self.font_paths['bold'], font_size)
-    
+
         # HEADLINE WRAPPING with dynamic font adjustment
         words = headline.upper().split()
         lines = []
         current_line = []
-        
+
         for word in words:
             test_line = ' '.join(current_line + [word])
             if draw.textlength(test_line, font=font_bold) <= max_width:
                 current_line.append(word)
             else:
-                if current_line: 
+                if current_line:
                     lines.append(' '.join(current_line))
                 current_line = [word]
-        if current_line: 
+        if current_line:
             lines.append(' '.join(current_line))
-    
+
         # Re-wrap with smaller font if more than 2 lines, but keep minimum size
         original_font_size = font_size
         while len(lines) > 2 and font_size > 35:  # Minimum 35px instead of 24px
@@ -255,23 +255,23 @@ class ImageGenerator:
             lines, current_line = [], []
             for word in words:
                 test_line = ' '.join(current_line + [word])
-                if draw.textlength(test_line, font=font_bold) <= max_width: 
+                if draw.textlength(test_line, font=font_bold) <= max_width:
                     current_line.append(word)
                 else:
-                    if current_line: 
+                    if current_line:
                         lines.append(' '.join(current_line))
                     current_line = [word]
-            if current_line: 
+            if current_line:
                 lines.append(' '.join(current_line))
-        
+
         print(f"📝 Final font size after wrapping: {font_size}px, Lines: {len(lines)}")
-    
+
         # LAYOUT CALCULATIONS
         line_height = int(font_size * 1.3)  # Slightly more line height
         line_spacing = max(8, int(font_size * 0.15))  # Dynamic line spacing
         total_text_height = len(lines) * line_height + (len(lines) - 1) * line_spacing
         start_y = H - total_text_height - int(H * 0.12)  # Position higher up (12% from bottom)
-    
+
         # OVERLAY with better padding
         bg_padding = max(20, int(font_size * 0.4))
         bg_top = start_y - bg_padding
@@ -282,79 +282,79 @@ class ImageGenerator:
         overlay_draw.rectangle([0, bg_top, W, bg_bottom], fill=(0, 0, 0, 160))
         img = Image.alpha_composite(img, overlay)
         draw = ImageDraw.Draw(img)
-    
+
         # HIGHLIGHT + TEXT with better contrast
         hex_color = highlight_color.lstrip('#')
         r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-        
+
         for i, line in enumerate(lines):
             y_pos = start_y + (i * (line_height + line_spacing))
             line_width = draw.textlength(line, font=font_bold)
             x_pos = (W - line_width) / 2
-            
+
             # Highlight box with padding
             highlight_padding = max(5, int(font_size * 0.1))
             draw.rectangle([
-                x_pos - highlight_padding, 
-                y_pos - highlight_padding, 
-                x_pos + line_width + highlight_padding, 
+                x_pos - highlight_padding,
+                y_pos - highlight_padding,
+                x_pos + line_width + highlight_padding,
                 y_pos + line_height + highlight_padding
             ], fill=(r, g, b, 120))
-            
+
             # Text with stroke for better readability
             # Draw text stroke (black outline)
             stroke_width = max(1, int(font_size / 30))
             for adj_x, adj_y in [(-stroke_width, 0), (stroke_width, 0), (0, -stroke_width), (0, stroke_width)]:
                 draw.text((x_pos + adj_x, y_pos + adj_y), line, font=font_bold, fill="black")
-            
+
             # Main text
             draw.text((x_pos, y_pos), line, font=font_bold, fill="white")
-    
+
         # SUBHEADLINE with proper scaling
         if subheadline:
             sub_font_size = max(int(font_size * 0.65), 25)  # Minimum 25px for subheadline
             sub_font = get_font(self.font_paths['regular'], sub_font_size)
-            
+
             sub_words = subheadline.split()
             sub_lines, current_sub_line = [], []
             for word in sub_words:
                 test_line = ' '.join(current_sub_line + [word])
-                if draw.textlength(test_line, font=sub_font) <= max_width: 
+                if draw.textlength(test_line, font=sub_font) <= max_width:
                     current_sub_line.append(word)
                 else:
-                    if current_sub_line: 
+                    if current_sub_line:
                         sub_lines.append(' '.join(current_sub_line))
                     current_sub_line = [word]
-            if current_sub_line: 
+            if current_sub_line:
                 sub_lines.append(' '.join(current_sub_line))
-    
+
             sub_line_height = int(sub_font_size * 1.2)
             sub_total_height = len(sub_lines) * sub_line_height
             sub_start_y = start_y + total_text_height + max(30, int(font_size * 0.5))
-            
+
             # Subheadline background
             sub_padding = max(15, int(sub_font_size * 0.3))
             sub_overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
             sub_draw = ImageDraw.Draw(sub_overlay)
             sub_draw.rectangle([
-                0, sub_start_y - sub_padding, 
+                0, sub_start_y - sub_padding,
                 W, sub_start_y + sub_total_height + sub_padding
             ], fill=(0, 0, 0, 140))
             img = Image.alpha_composite(img, sub_overlay)
             draw = ImageDraw.Draw(img)
-    
+
             for i, sub_line in enumerate(sub_lines):
                 y_pos = sub_start_y + (i * sub_line_height)
                 line_width = draw.textlength(sub_line, font=sub_font)
                 x_pos = (W - line_width) / 2
-                
+
                 # Subheadline stroke for readability
                 stroke_width = 1
                 for adj_x, adj_y in [(-stroke_width, 0), (stroke_width, 0), (0, -stroke_width), (0, stroke_width)]:
                     draw.text((x_pos + adj_x, y_pos + adj_y), sub_line, font=sub_font, fill="black")
-                
+
                 draw.text((x_pos, y_pos), sub_line, font=sub_font, fill="#EEEEEE")
-    
+
         img.convert("RGB").save(output_path, "PNG", quality=95)
 
     def _create_platform_prompt(self, headline: str, summary: str, platform: str, specs: dict) -> str:
