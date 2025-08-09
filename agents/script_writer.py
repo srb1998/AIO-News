@@ -138,7 +138,7 @@ class ScriptWriterAgent:
               "instagram": {{
                 "slides_count": {slides_count},
                 "story_content": "Summarize the story by presenting key facts, relevant context, the impact, and a definitive conclusion.",
-                "music_suggestions": ["Latest trending 2025 background music suggestion 1"," 2"],
+                "music_suggestions": ["Suggest latest trending 2025 background music as per story"],
                 "estimated_engagement": "high/medium/low",
               }},
               "twitter": {{

@@ -96,7 +96,7 @@ class Settings:
         # Telegram Configuration (for Phase 2)
         self.TELEGRAM_CONFIG = {
             "polling_interval_seconds": 2,
-            "approval_timeout_minutes": 30,
+            "approval_timeout_minutes": 3,
             "approval_storage_path": "data/approvals/",
             "images_storage_path": "data/outputs/images/",
             "videos_storage_path": "data/outputs/videos/",
