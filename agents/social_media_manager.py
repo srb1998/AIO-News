@@ -94,7 +94,7 @@ class SocialMediaManagerAgent:
             content=headline,
             image_suggestions=image_suggestions,
             twitter_content=script_package.get("twitter", {}).get("tweet", ""),
-            instagram_content=script_package.get("instagram", {}).get("insta_headline", ""),
+            instagram_content=script_package.get("instagram", {}).get("story_content", ""),
             music_suggestions=script_package.get("instagram", {}).get("music_suggestions", []),
         )
 

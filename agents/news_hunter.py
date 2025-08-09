@@ -1,10 +1,9 @@
-# agents/news_hunter.py - IMPROVED VERSION
+# agents/news_hunter.py
 
 import re
 import json
 import asyncio
 from typing import List, Dict, Any
-from datetime import datetime, timedelta
 
 from core.token_manager import track_tokens
 from core.llm_client import llm_client
@@ -17,9 +16,9 @@ class NewsHunterAgent:
         self.semantic_cache = SemanticCache()
 
     @track_tokens("NewsHunter")
-    async def hunt_daily_news(self, max_articles_to_fetch: int = 40, top_n_to_process: int = 8) -> Dict[str, Any]:
+    async def hunt_daily_news(self, max_articles_to_fetch: int = 40, top_n_to_process: int = 5) -> Dict[str, Any]:
         """
-        Finds the best stories using a two-stage funnel with improved caching strategy.
+        Finds the best stories using a two-stage funnel and caches only the final results.
         """
         print("🕵️ News Hunter Agent: Starting efficient two-stage news hunt...")
 
@@ -29,24 +28,14 @@ class NewsHunterAgent:
         if not raw_articles:
             return {"success": True, "message": "No raw articles found.", "top_headlines": []}
 
-        # 2. PRE-FILTER: Remove already cached articles BEFORE triage to save tokens
-        print("🔍 Pre-filtering: Removing already cached stories...")
-        filtered_articles = await self._prefilter_cached_articles(raw_articles)
-        print(f"📝 After pre-filtering: {len(filtered_articles)} articles remain")
-
-        if len(filtered_articles) < 3:
-            print("⚠️ Too few unique articles after pre-filtering. Expanding search...")
-            # Increase processing count to get more variety
-            top_n_to_process = min(len(filtered_articles), 15)
-        
-        # 3. TRIAGE (Cheap & Fast) - Now with better viral detection
-        triage_result = await self._stage1_triage(filtered_articles)
+        # 2. TRIAGE (Cheap & Fast)
+        triage_result = await self._stage1_triage(raw_articles)
         if not triage_result.get("success") or not triage_result.get("ranked_articles"):
             return {"success": False, "error": "Triage stage failed or returned no articles."}
         
         ranked_articles = triage_result.get("ranked_articles", [])
 
-        # 4. CREATIVE DESK (Expensive & High-Quality)
+        # 3. CREATIVE DESK (Expensive & High-Quality)
         promising_articles = ranked_articles[:top_n_to_process]
         print(f"📰 Triage complete. Sending top {len(promising_articles)} promising articles to the Creative Desk.")
         creative_result = await self._stage2_creative_desk(promising_articles)
@@ -55,19 +44,21 @@ class NewsHunterAgent:
 
         final_headlines = creative_result.get("headlines", [])
 
-        # 5. FINAL CACHE CHECK (Only for exact duplicates, not semantic)
-        print("💾 Final Cache: Adding new stories to cache...")
+        # 4. CACHE (Efficient - Only on final, high-quality headlines)
+        print("💾 Caching Stage: Generating embeddings and checking for duplicates on final headlines...")
         unique_final_headlines = []
         for headline_data in final_headlines:
             text_to_embed = f"{headline_data['headline']}\n{headline_data['summary']}"
             embedding = await llm_client.get_embedding(text_to_embed)
             if not embedding: continue
 
-            # Add to cache regardless (we already pre-filtered)
-            unique_final_headlines.append(headline_data)
-            story_id = str(abs(hash(f"{headline_data.get('original_title')}_{headline_data.get('source')}")))
-            self.semantic_cache.add_story_embedding(story_id, embedding)
-            print(f"✅ Added fresh headline: '{headline_data['headline'][:50]}...'")
+            if not self.semantic_cache.is_story_similar(embedding):
+                print(f"✅ Unique final headline: '{headline_data['headline'][:50]}...'")
+                unique_final_headlines.append(headline_data)
+                story_id = str(abs(hash(f"{headline_data.get('original_title')}_{headline_data.get('source')}")))
+                self.semantic_cache.add_story_embedding(story_id, embedding)
+            else:
+                print(f"SEMANTIC HIT: Skipping final headline as it's a duplicate of a past story: '{headline_data['headline'][:50]}...'")
             await asyncio.sleep(0.05)
 
         # Calculate total cost from both stages
@@ -80,76 +71,29 @@ class NewsHunterAgent:
         return {
             "success": True,
             "articles_processed": len(promising_articles),
-            "top_headlines": unique_final_headlines[:5],
+            "top_headlines": unique_final_headlines,
             "token_usage": total_token_usage,
         }
 
-    async def _prefilter_cached_articles(self, articles: List[Dict]) -> List[Dict]:
-        """Pre-filter articles against cache before expensive LLM processing"""
-        filtered_articles = []
-        
-        for article in articles:
-            # Create a simple text representation
-            text_to_embed = f"{article['title']}\n{article.get('description', '')[:200]}"
-            embedding = await llm_client.get_embedding(text_to_embed)
-            
-            if not embedding:
-                continue
-                
-            # Use a stricter threshold for pre-filtering (only very similar stories)
-            if not self.semantic_cache.is_story_similar(embedding, threshold=0.4):
-                filtered_articles.append(article)
-            else:
-                print(f"🔄 Pre-filter: Skipping cached story: '{article['title'][:50]}...'")
-            
-            await asyncio.sleep(0.03)
-        
-        return filtered_articles
-
     async def _stage1_triage(self, articles: List[Dict]) -> Dict[str, Any]:
-        """Enhanced triage that detects viral-worthy, amazing, and unusual stories"""
+        """Cheap, fast LLM call to rank a large number of articles by title only."""
         articles_text = ""
         for i, article in enumerate(articles, 1):
-            articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:300]}..\nSource: {article['source']}\n---\n"
+            articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
-            You are a viral content curator with an eye for AMAZING stories that make people stop scrolling.
+        You are an extremely fast news curator. Your job is to rank articles by their potential to be viral or interesting and importance.
+        Read these {len(articles)} articles. Based on the title and description, assign a 'viral_score' from 1-10.
+        A high score means the story is important and can be viral, and effect or shook people mostly we have Indian audience.
+        But we need high score for important world news that is shocking or amazing world news that is highly unusual.
+        Article Titles and Descriptions:\n{articles_text}
 
-            Rate these {len(articles)} articles on VIRAL POTENTIAL (1-10 scale):
-
-            **HIGH SCORES (8-10) for:**
-            - Shocking/surprising revelations ("Man saves ₹36,500 buying MacBook in Vietnam")  
-            - Incredible human achievements ("Meet world's rarest bird with rainbow feathers")
-            - Unbelievable coincidences or irony
-            - David vs Goliath stories (small person vs big corporation/system)
-            - Mind-blowing discoveries or inventions
-            - Heartwarming rescue stories
-            - Celebrity drama/scandals
-            - Economic hacks (travel, shopping, life hacks that save money)
-            - Unusual animals, places, or phenomena
-            - Stories that make you think "No way, that actually happened!"
-
-            **MEDIUM SCORES (5-7) for:**
-            - Important but predictable news (political statements, routine announcements)
-            - Business earnings, routine government decisions
-            - Sports results (unless truly historic)
-
-            **LOW SCORES (1-4) for:**
-            - Boring corporate news, routine updates
-            - Technical jargon-heavy content
-            - Overly complex policy discussions
-
-            **Indian Audience Focus:** Prioritize stories with India connection OR universal human interest.
-
-            Articles:
-            {articles_text}
-
-            Return ONLY valid JSON:
-            {{"ranked_articles": [{{"index": 1, "viral_score": 9.2}}, {{"index": 2, "viral_score": 3.1}}]}}
+        Return ONLY a valid JSON object with a single key "ranked_articles".
+        Each item must include the article index and its score.
+        Example: {{"ranked_articles": [{{"index": 1, "viral_score": 9.0}}, {{"index": 2, "viral_score": 3.7}}]}}
         """
-        
-        print("STAGE 1: ENHANCED TRIAGE - Looking for viral-worthy stories...")
-        response = await llm_client.smart_generate(prompt, max_tokens=5000, priority="normal")
+        print("STAGE 1: TRIAGE - Ranking articles by title...")
+        response = await llm_client.smart_generate(prompt, max_tokens=4000, priority="normal")
 
         if "error" in response: return {"success": False, "error": response["error"]}
         
@@ -172,65 +116,53 @@ class NewsHunterAgent:
             return {"success": False, "error": str(e)}
 
     async def _stage2_creative_desk(self, articles: List[Dict]) -> Dict[str, Any]:
-        """Enhanced creative desk with focus on amazing, viral headlines"""
+        """Processes the most promising articles with the high-quality 'ViralFeed' prompt."""
         articles_text = ""
         for i, article in enumerate(articles, 1):
-            viral_score = article.get('viral_score', 0)
-            articles_text += f"""Article {i}: (Viral Score: {viral_score}/10)
-                Original Title: {article['title']}
-                Source: {article['source']}
-                URL: {article['url']}
-                Description: {article['description'][:300]}...
-                ---
-                """
+            articles_text += f"Article {i}:\nOriginal Title: {article['title']}\nSource: {article['source']}\nURL: {article['url']}\nDescription: {article['description'][:250]}...\n---\n"
+
+            # Removed 4.  **The "Why" Factor:** Your summary must answer "Why should I care?" in 1-2 punchy sentences.
         
         prompt = f"""
-        You are the lead editor for 'ViralFeed India' - master of creating headlines that make people think "I HAVE to read this!"
+        You are the lead editor for 'ViralFeed', a digital news outlet famous for its edgy, highly-engaging, and easy-to-understand content for a young, internet-savvy audience.
+            The reader must understand the core of the story from the headline alone.
 
-        **Your Mission:** Create headlines for stories that are GENUINELY interesting, amazing, or shocking.
+            **Your Style Guide:**
+            1.  **Clarity First:** The headline MUST provide proper idea for the reader to understand what the story is about. Add very little amount of Humour. It should give proper context and not be confusing.
+            2.  **Simple, Powerful Language:** Use basic English to Indian audiences with human like tone and should not feel ai generated. Avoid jargon.
+            3.  **Inject Emotion & Conflict:** Frame stories around human elements: conflict, surprise, outrage, humor, or shock.
 
-        **HEADLINE FORMULA for VIRAL SUCCESS:**
-        1. **Curiosity Gap:** Make readers desperate to know more
-        2. **Specific Numbers/Details:** "Saves ₹36,500" not "saves money"  
-        3. **Emotion Words:** SHOCK, AMAZING, UNBELIEVABLE, GENIUS, DISASTER
-        4. **Human Element:** Focus on people, not institutions
-        5. **Clear Context:** Reader must understand what happened
+            **Crucial Example of What to Do (and Not Do):**
+            - **Original Boring Headline:** "Air India Express operations affected as crew members report sick"
+            - **BAD Viral Headline:** "Air India Pilots Are SCARED? Mass Sick Calls After HORRIFIC Crash!" (This is too vague, lacks context about the *consequence*.)
+            - **GOOD Viral Headline:** "Mass 'Sick-Out' at Air India GROUNDS 80+ Flights After Crash - What's Really Happening?" (This is perfect. It has emotion, context (flights grounded), and a question to drive engagement.)
 
-        **PERFECT EXAMPLES:**
-        - "Genius Indian Flies to Vietnam, Buys MacBook ₹36,500 Cheaper Than India + Free Holiday"
-        - "World's Rarest Bird Found in India - Its Feathers Change 7 Different Colors!"
-        - "Traffic Cop's ₹2 Jugaad Solves Mumbai's ₹200 Crore Problem - Engineers Shocked"
-        - "Tesla Owner's Electricity Bill: ₹0 for 6 Months - Here's His Secret Trick"
-
-        **STYLE RULES:**
-        - Use specific amounts, numbers, timeframes
-        - Focus on the AMAZING/SURPRISING aspect first
-        - Keep it conversational, not news-reporter formal
-        - Add context that makes non-Indians curious too
-
-        Process these {len(articles)} articles:
-        {articles_text}
-
-        Return ONLY valid JSON:
+        **Your Task:**
+        Analyze these {len(articles)} articles. Return ONLY a valid JSON object.
         {{
             "top_headlines": [
                 {{
-                    "headline": "Your viral headline here",
-                    "summary": "1-2 sentence punchy explanation of why this matters",
-                    "priority": 8,
-                    "category": "Amazing Stories",
-                    "original_title": "Original article title",
-                    "source": "Source name",
-                    "url": "Article URL"
+                    "headline": "Your viral headline.",
+                    "summary": "Your punchy summary.",
+                    "priority": 9,
+                    "category": "World News",
+                    "original_title": "Original Title from Article",
+                    "source": "Source Name from Article",
+                    "url": "URL from Article"
                 }}
             ]
         }}
+        
+        **Rules:**
+        - If an article is not a real news story, EXCLUDE it from the JSON.
+        - Do not repeat stories.
 
-        **CRITICAL:** Only include stories that are genuinely interesting. Skip boring corporate/political routine news.
+        **Articles to Process:**
+        {articles_text}
         """
-
-        print("STAGE 2: ENHANCED CREATIVE DESK - Crafting viral headlines...")
-        response = await llm_client.smart_generate(prompt, max_tokens=10000, priority="normal")
+        
+        print("STAGE 2: CREATIVE DESK - Generating polished headlines for top stories...")
+        response = await llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
 
         if "error" in response: return {"success": False, "error": response["error"]}
 
@@ -241,6 +173,118 @@ class NewsHunterAgent:
         except Exception as e:
             print(f"❌ Creative Desk stage failed to parse JSON: {e}")
             return {"success": False, "error": str(e)}
+        
+    @track_tokens("NewsHunter-Breaking")
+    async def hunt_breaking_news(self) -> Dict[str, Any]:
+        """Hunt specifically for breaking news"""
+        print("🚨 News Hunter Agent: Checking for breaking news...")
+        
+        # Get breaking news articles
+        breaking_articles = self.news_sources.get_breaking_news()
+        
+        if not breaking_articles:
+            return {"success": True, "message": "No breaking news found", "articles": []}
+        
+        print(f"🚨 Found {len(breaking_articles)} breaking news articles")
+        
+        # Process breaking news with high priority
+        processed_result = await self._process_breaking_news_with_llm(breaking_articles)
+        
+        if "error" in processed_result:
+            return processed_result
+        
+        return {
+            "success": True,
+            "breaking_news_found": len(breaking_articles),
+            "processed_breaking_news": processed_result["content"],
+            "token_usage": processed_result["token_usage"]
+        }
+    
+    async def _process_articles_with_llm(self, articles: List[Dict]) -> Dict[str, Any]:
+        """Process articles using LLM for summarization and categorization"""
+        
+        # Create efficient prompt
+        articles_text = self._format_articles_for_prompt(articles)
+        
+        prompt = f"""
+            You are the lead editor for 'ViralFeed', a digital news outlet famous for its edgy, highly-engaging, and easy-to-understand content for a young, internet-savvy audience. 
+            Your goal is to get clicks, but NEVER at the expense of clarity. 
+            The reader must understand the core of the story from the headline alone.
+
+            **Your Style Guide:**
+            1.  **Clarity First, Clickbait Second:** The headline MUST provide enough context for the reader to understand what the story is about. It should be intriguing, not confusing.
+            2.  **Simple, Powerful Language:** Use everyday English. Avoid jargon.
+            3.  **Inject Emotion & Conflict:** Frame stories around human elements: conflict, surprise, outrage, humor, or shock.
+            4.  **The "Why" Factor:** Your summary must answer "Why should I care?" in 1-2 punchy sentences.
+
+            **Crucial Example of What to Do (and Not Do):**
+            - **Original Boring Headline:** "Air India Express operations affected as crew members report sick"
+            - **BAD Viral Headline:** "Air India Pilots Are SCARED? Mass Sick Calls After HORRIFIC Crash!" (This is too vague, lacks context about the *consequence*.)
+            - **GOOD Viral Headline:** "Mass 'Sick-Out' at Air India GROUNDS 80+ Flights After Crash - What's Really Happening?" (This is perfect. It has emotion, context (flights grounded), and a question to drive engagement.)
+
+            Your Task:
+            Analyze these {len(articles)} news articles and return a JSON response:
+            {articles_text}
+            - The `headline` should be your new, viral-style headline.
+            - The `summary` should be a short, punchy, 1-2 sentence explanation in the same style.
+            - The `priority` score (1-10) must be based on VIRAL POTENTIAL and shocking and interesting news. A story about a celebrity feud or a shocking local event is a 10.
+            - The `category` should be simple: 'Tech', 'Entertainment', 'World News', 'Finance', 'Oddly Specific'.
+            - Add an `original_title` field to store the article's original title for caching.
+            Return only the JSON object with this structure and dont make any error like forgetting comma or double quotes:
+            {{
+                "top_headlines": [
+                    {{
+                        "headline": "Your new viral headline here.",
+                        "summary": "Your punchy, simple summary.",
+                        "priority": give priority from 1 to 10,
+                        "published" : "DD-MM-YYYY HH:MM:SS",
+                        "category": "Entertainment",
+                        "original_title": "Original Title from Article",
+                        "source": "source name",
+                        "url": "article url",
+                    }}
+                ]
+            }}
+            Rules -
+            - "CRITICAL RULE: If an article is not a real news story (e.g., it's a site description, an ad, or a note), you MUST completely exclude it from your JSON output. Do not comment on it. Just ignore it. Your output must ONLY contain real news stories."
+            - Dont repeat the story
+            """
+        print(f"Prompt for news hunter LLM:", prompt)
+        # Use smart LLM generation
+        return await llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
+
+    async def _process_breaking_news_with_llm(self, articles: List[Dict]) -> Dict[str, Any]:
+        """Process breaking news with high priority LLM"""
+        
+        articles_text = self._format_articles_for_prompt(articles)
+        
+        prompt = f"""
+            URGENT: Process these {len(articles)} BREAKING NEWS articles:
+
+            {articles_text}
+
+            Return JSON with this structure:
+            {{
+                "urgent_alerts": [
+                    {{
+                        "headline": "urgent headline",
+                        "summary": "key facts in 1-2 sentences",
+                        "impact": "why this matters",
+                        "source": "source name", 
+                        "image_url": "image url if available"
+                    }}
+                ]
+            }}
+
+            Focus on:
+            - Immediate impact and importance
+            - Factual accuracy
+            - Clear, urgent language
+            - Essential details only
+        """
+
+        # Use high priority for breaking news
+        return await llm_client.smart_generate(prompt, max_tokens=400, priority="critical")
 
     def _format_articles_for_prompt(self, articles: List[Dict]) -> str:
         """Format articles efficiently for LLM prompt"""
