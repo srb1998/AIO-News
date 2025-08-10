@@ -1,6 +1,4 @@
-# --- START OF FILE telegram_bot.py ---
-
-# telegram_bot.py - Improved media upload with platform-specific buttons
+# telegram_bot.py
 
 import aiohttp
 import asyncio

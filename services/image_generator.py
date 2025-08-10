@@ -61,8 +61,8 @@ class ImageGenerator:
         else:  # Linux/Unix (Railway environment)
             self.font_paths = {
                 'bold': [
-                    os.path.join(fonts_dir, "Inter-Bold.ttf"),
                     os.path.join(fonts_dir, "Vatena.otf"),
+                    os.path.join(fonts_dir, "Inter-Bold.ttf"),
                     # Fallback to system fonts
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
                     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
