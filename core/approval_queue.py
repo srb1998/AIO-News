@@ -1,4 +1,4 @@
-# --- START OF FILE approval_queue.py ---
+# approval_queue.py - Updated with hashtags and platform content support
 
 import json
 import os
@@ -13,14 +13,19 @@ class ApprovalQueue:
         self.timeout_minutes = settings.TELEGRAM_CONFIG["approval_timeout_minutes"]
         os.makedirs(self.storage_path, exist_ok=True)
 
-    def add_request(self, story_id: str, platform: str, workflow_id: str, content: str, sub_content: str, images: List[str], videos: List[str], message_ids: Dict[str, int], created_at: datetime) -> None:
-        """Add a pending approval request to the queue, including sub_content."""
+    def add_request(self, story_id: str, platform: str, workflow_id: str, content: str, 
+                   sub_content: str, images: List[str], videos: List[str], 
+                   message_ids: Dict[str, int], created_at: datetime,
+                   platform_content: str = "", hashtags: List[str] = None) -> None:
+        """Add a pending approval request to the queue, including platform content and hashtags."""
         request = {
             "story_id": story_id,
             "platform": platform,
             "workflow_id": workflow_id,
             "content": content,
-            "sub_content": sub_content,  # <-- Storing the summary for image overlays
+            "sub_content": sub_content,
+            "platform_content": platform_content,
+            "hashtags": hashtags or [],
             "images": images,
             "videos": videos,
             "message_ids": message_ids,
@@ -73,11 +78,21 @@ class ApprovalQueue:
                 return None
 
     def get_request(self, story_id: str, platform: str) -> Optional[Dict]:
+        """Get a specific request, ensuring backwards compatibility for older requests"""
         file_path = os.path.join(self.storage_path, f"{story_id}_{platform}.json")
         if not os.path.exists(file_path): return None
         with FileLock(f"{file_path}.lock"):
             try:
-                with open(file_path, 'r') as f: return json.load(f)
+                with open(file_path, 'r') as f: 
+                    request = json.load(f)
+                
+                # Ensure backwards compatibility for older requests that don't have these fields
+                if "platform_content" not in request:
+                    request["platform_content"] = ""
+                if "hashtags" not in request:
+                    request["hashtags"] = []
+                
+                return request
             except Exception as e:
                 print(f"❌ Failed to load approval request for {story_id}_{platform}: {e}")
                 return None
@@ -97,8 +112,15 @@ class ApprovalQueue:
                 try:
                     with open(file_path, 'r') as f:
                         request = json.load(f)
+                    
                     if request.get("status") == "APPROVED":
+                        # Ensure backwards compatibility
+                        if "platform_content" not in request:
+                            request["platform_content"] = ""
+                        if "hashtags" not in request:
+                            request["hashtags"] = []
                         approved_posts.append(request)
+                        
                 except Exception as e:
                     print(f"❌ Failed to load approved request {filename}: {e}")
 
@@ -109,6 +131,26 @@ class ApprovalQueue:
         approved_posts.sort(key=lambda x: datetime.fromisoformat(x['created_at']))
         return approved_posts[0]
 
+    def get_all_pending(self) -> List[Dict]:
+        """Get all pending approval requests"""
+        pending = []
+        for filename in os.listdir(self.storage_path):
+            if filename.endswith(".json"):
+                file_path = os.path.join(self.storage_path, filename)
+                with FileLock(f"{file_path}.lock"):
+                    try:
+                        with open(file_path, 'r') as f:
+                            request = json.load(f)
+                        if request.get("status") == "PENDING":
+                            # Ensure backwards compatibility
+                            if "platform_content" not in request:
+                                request["platform_content"] = ""
+                            if "hashtags" not in request:
+                                request["hashtags"] = []
+                            pending.append(request)
+                    except Exception as e:
+                        print(f"❌ Failed to check pending for {filename}: {e}")
+        return pending
 
     def get_timed_out_requests(self) -> List[Dict]:
         """Return requests that have timed out."""
@@ -123,7 +165,33 @@ class ApprovalQueue:
                             request = json.load(f)
                         timeout_at = datetime.fromisoformat(request["timeout_at"])
                         if request["status"] == "PENDING" and current_time >= timeout_at:
+                            # Ensure backwards compatibility
+                            if "platform_content" not in request:
+                                request["platform_content"] = ""
+                            if "hashtags" not in request:
+                                request["hashtags"] = []
                             timed_out.append(request)
                     except Exception as e:
                         print(f"❌ Failed to check timeout for {filename}: {e}")
         return timed_out
+
+    @property
+    def queue(self) -> List[Dict]:
+        """Get all requests in the queue"""
+        all_requests = []
+        for filename in os.listdir(self.storage_path):
+            if filename.endswith(".json"):
+                file_path = os.path.join(self.storage_path, filename)
+                with FileLock(f"{file_path}.lock"):
+                    try:
+                        with open(file_path, 'r') as f:
+                            request = json.load(f)
+                        # Ensure backwards compatibility
+                        if "platform_content" not in request:
+                            request["platform_content"] = ""
+                        if "hashtags" not in request:
+                            request["hashtags"] = []
+                        all_requests.append(request)
+                    except Exception as e:
+                        print(f"❌ Failed to load request {filename}: {e}")
+        return all_requests

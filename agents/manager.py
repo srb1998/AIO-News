@@ -148,32 +148,6 @@ class ManagerAgent:
                     posting_mode=posting_mode
                 )
 
-            workflow_result["steps"] = [
-                {
-                    "step": 1, "agent": "news_hunter", "status": "success",
-                    "token_usage": hunter_result.get("token_usage", {}),
-                    "articles_fetched": articles_fetched,
-                    "articles_after_filtering": articles_after_filtering,
-                    "articles_filtered_out": filtered_out,
-                    "headlines_generated": len(final_headlines)
-                },
-                {
-                    "step": 2, "agent": "detective", "status": "success",
-                    "token_usage": detective_result.get("token_usage", {}),
-                    "stories_investigated": len(investigation_reports)
-                },
-                {
-                    "step": 3, "agent": "script_writer", "status": "success",
-                    "token_usage": script_result.get("token_usage", {}),
-                    "scripts_generated": len(platform_scripts)
-                },
-                {
-                    "step": 4, "agent": "social_media_manager", "status": "success",
-                    "posts_processed": social_media_result.get("posts_processed", 0),
-                    "posts_pending": social_media_result.get("posts_pending", 0)
-                }
-            ]
-
             # Calculate totals
             total_cost = sum(
                 step["token_usage"].get("cost", 0) 

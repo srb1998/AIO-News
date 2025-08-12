@@ -102,7 +102,7 @@ class ScriptWriterAgent:
         headline = story.get("original_headline", "Unknown Story")
         summary = story.get("research_summary", "")
         key_players = ", ".join(story.get("key_players", []))
-        verified_facts = story.get("verified_facts", [])[:2]  # Limit to save tokens
+        verified_facts = story.get("verified_facts", [])[:2]
         impact_analysis = story.get("impact_analysis", "")
         importance_score = story.get("importance_score", 0)
         visual_needs = story.get("visual_needs", [])
@@ -125,21 +125,18 @@ class ScriptWriterAgent:
             CRITICAL INSTRUCTIONS:
             - NEVER end any content with questions
             - Always provide definitive, factual statements
-            - Use unbiased, professional journalism tone like palki sharma
+            - Use professional journalism tone (like Palki Sharma)
             - Give to the point and clear news
             - Youtube dont use these keywords in the script OPENING_HOOK, CONTEXT_SETTING etc its just for reference
-            - Instagram slides: Use {slides_count} slides based on story importance
-            - Use provided visual needs for image suggestions
-            - Remember we are Indian news agency so have some Indian context in mind and current president of America is Trump.
+            - Indian news agency perspective (pro-India, current US President is Trump, Anti Pakistan)
 
             Respond with VALID JSON in this exact format:
 
             {{
               "instagram": {{
-                "slides_count": {slides_count},
-                "story_content": "Summarize the story by presenting key facts, relevant context, the impact, and a definitive conclusion.",
-                "music_suggestions": ["Suggest latest trending 2025 background music as per story"],
+                "story_content": "Summarize the story as a standalone caption by presenting key facts, relevant context, the impact, and a definitive conclusion.",
                 "estimated_engagement": "high/medium/low",
+                "hashtags": ["3-5 relevant hashtags"]
               }},
               "twitter": {{
                 "tweet": "A single, structured, and highly engaging tweet summarizing the story, using a hook, key fact, and call to action.",
@@ -202,15 +199,9 @@ class ScriptWriterAgent:
             if "instagram" in parsed_data:
                 ig_data = parsed_data["instagram"]
                 scripts["instagram"] = {
-                    "slides_count": ig_data.get("slides_count", 2),
                     "insta_headline": story.get("original_headline", ""),
-                    "music_suggestions": ig_data.get("music_suggestions", []),
                     "story_content": ig_data.get("story_content", ""),
-                    "image_suggestions": self._merge_visual_suggestions(
-                        story.get("visual_needs", []),
-                        ig_data.get("image_suggestions", []),
-                        "instagram"
-                    ),
+                    "hashtags": ig_data.get("hashtags", []),
                     "estimated_engagement": ig_data.get("estimated_engagement", "medium")
                 }
 

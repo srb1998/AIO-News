@@ -1,4 +1,4 @@
-# social_media_manager.py - Updated with real Instagram posting
+# social_media_manager.py
 
 import asyncio
 import os
@@ -7,7 +7,7 @@ import cloudinary.uploader
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from services.telegram_bot import TelegramNotifier
-from services.social_platforms import SocialPlatformManager  # NEW IMPORT
+from services.social_platforms import SocialPlatformManager
 from core.approval_queue import ApprovalQueue
 from config.settings import settings
 from services.image_generator import ImageGenerator
@@ -30,6 +30,27 @@ class SocialMediaManagerAgent:
         
         # NEW: Initialize real social platform posting
         self.social_platform_manager = SocialPlatformManager()
+    
+    def _format_post_content(self, platform: str, headline: str, platform_content: str = "", hashtags: List[str] = None) -> str:
+        """
+        Format the final post content with headline, platform-specific content, and hashtags
+        """
+        if not hashtags:
+            hashtags = []
+        
+        # Start with platform-specific content if available, otherwise use headline
+        if platform_content and platform_content.strip():
+            content = platform_content.strip()
+        else:
+            content = headline.strip()
+        
+        # Add hashtags at the end
+        if hashtags:
+            hashtag_string = " ".join([f"#{tag.strip().replace('#', '')}" for tag in hashtags if tag.strip()])
+            if hashtag_string:
+                content = f"{content}\n\n{hashtag_string}"
+        
+        return content
     
     async def handle_webhook_upload(self, story_id: str, platform: str, media_url: str, resource_type: str, workflow_id: str):
         """
@@ -77,32 +98,62 @@ class SocialMediaManagerAgent:
         return results
 
     async def _process_single_story_package(self, script_package: Dict, workflow_id: str) -> Dict:
-        """Processes a single story, creating approval requests with the correct workflow_id."""
+        """Processes a single story, creating approval requests with platform-specific content and hashtags."""
         story_id = str(script_package.get("story_id", f"story_{int(datetime.now().timestamp())}"))
         headline = script_package.get("original_headline", "News Update")
         summary = script_package.get("research_summary", "")
 
-        image_suggestions = list(set(
-            script_package.get("twitter", {}).get("image_suggestions", []) +
-            script_package.get("instagram", {}).get("image_suggestions", [])
-        ))[:3]
+        # Extract platform-specific content and hashtags
+        twitter_data = script_package.get("twitter", {})
+        instagram_data = script_package.get("instagram", {})
+        
+        twitter_content = twitter_data.get("tweet", "")
+        twitter_hashtags = twitter_data.get("hashtags", [])
+        
+        instagram_content = instagram_data.get("story_content", "")
+        instagram_hashtags = instagram_data.get("hashtags", [])
 
+        image_suggestions = list(set(
+            twitter_data.get("image_suggestions", []) +
+            instagram_data.get("image_suggestions", [])
+        ))[:2]
+
+        # Send Telegram notification
         message_ids = await self.telegram_bot.send_approval_notification(
             story_id=story_id,
             workflow_id=workflow_id,
             platforms=self.platforms,
             content=headline,
             image_suggestions=image_suggestions,
-            twitter_content=script_package.get("twitter", {}).get("tweet", ""),
-            instagram_content=script_package.get("instagram", {}).get("story_content", ""),
-            music_suggestions=script_package.get("instagram", {}).get("music_suggestions", []),
+            twitter_content=twitter_content,
+            instagram_content=instagram_content
         )
 
+        # Create approval requests with platform-specific data
         for platform in self.platforms:
+            platform_content = ""
+            platform_hashtags = []
+            
+            if platform == "twitter":
+                platform_content = twitter_content
+                platform_hashtags = twitter_hashtags
+            elif platform == "instagram":
+                platform_content = instagram_content
+                platform_hashtags = instagram_hashtags
+            # YouTube can be handled similarly when needed
+            
             self.approval_queue.add_request(
-                story_id=story_id, platform=platform, workflow_id=workflow_id, content=headline,
-                sub_content=summary, images=[], videos=[],
-                message_ids=message_ids, created_at=datetime.now()
+                story_id=story_id, 
+                platform=platform, 
+                workflow_id=workflow_id, 
+                content=headline,
+                sub_content=summary, 
+                images=[], 
+                videos=[],
+                message_ids=message_ids, 
+                created_at=datetime.now(),
+                platform_content=platform_content,
+                hashtags=platform_hashtags
             )
 
         return {
@@ -219,28 +270,34 @@ class SocialMediaManagerAgent:
         await self.telegram_bot.update_message(self.chat_id, request["message_ids"].get(platform), success_msg, {"inline_keyboard": []})
 
     async def _execute_approved_post(self, story_id: str, platform: str):
-        """UPDATED: Now uses real social platform posting instead of dummy implementation"""
+        
         request = self.approval_queue.get_request(story_id, platform)
         if not request or request["status"] != "APPROVED":
             return
 
         # Extract content and media
-        content = request["content"]
+        headline = request["content"]
+        platform_content = request.get("platform_content", "")
+        hashtags = request.get("hashtags", [])
         images = request.get("images", [])
         videos = request.get("videos", [])
 
+        # Format the final content with hashtags
+        final_content = self._format_post_content(platform, headline, platform_content, hashtags)
+
         print(f"🚀 REAL POSTING to {platform.upper()}:")
-        print(f"   Content: {content[:100]}...")
+        print(f"   Final Content: {final_content[:200]}...")
         print(f"   Images: {len(images)} files")
         print(f"   Videos: {len(videos)} files")
+        print(f"   Hashtags: {hashtags}")
 
         try:
-            # Use the real social platform manager
+            # Use the real social platform manager with formatted content
             success = await self.social_platform_manager.post_to_platform(
                 platform=platform,
                 images=images,
                 videos=videos,
-                content=content
+                content=final_content  # Now includes platform content + hashtags
             )
             
             if success:
@@ -283,8 +340,6 @@ class SocialMediaManagerAgent:
             msg = self.telegram_bot._escape_markdown(f"🔍 Timeout! Auto-approving {platform.capitalize()}.")
             await self.telegram_bot.update_message(self.chat_id, msg_id, msg, {"inline_keyboard": []})
             await self._handle_approval(story_id, platform)
-
-    # REMOVED: Old dummy _post_to_platform method - now using real implementation in _execute_approved_post
 
     def get_posting_status(self) -> Dict:
         """Enhanced status including social platform limits"""

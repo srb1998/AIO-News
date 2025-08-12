@@ -60,19 +60,19 @@ class TelegramNotifier:
     async def send_approval_notification(
         self, story_id: str, workflow_id: str, platforms: List[str], content: str,
         image_suggestions: List[str] = None,
-        twitter_content: str = "", instagram_content: str = "", music_suggestions: List[str] = None
+        twitter_content: str = "", instagram_content: str = "", hashtags: List[str] = None
     ) -> Dict[str, int]:
         """Send approval notification with platform-specific media upload buttons"""
         message_ids = {}
         suggestions_text = "\n".join(f"• {self._escape_markdown(sug)}" for sug in image_suggestions) if image_suggestions else "• AI will generate if none provided"
-        
+        hashtags_text = "\n".join(f"• {self._escape_markdown(tag)}" for tag in hashtags) if hashtags else "• No hashtags provided"
         # Main story approval message
         story_message_text = (
             f"📜 *APPROVAL: Story {story_id}*\n\n"
             f"*Headline:* `{self._escape_markdown(content)}`\n\n"
             f"*Instagram Post:*\n`{self._escape_markdown(instagram_content or 'N/A')}`\n\n"
-            f"*Music Suggestions:*\n{self._escape_markdown(', '.join(music_suggestions) or 'N/A')}\n\n"
             f"*Twitter Post:*\n`{self._escape_markdown(twitter_content or 'N/A')}`\n\n"
+            f"*Hashtags:*\n{hashtags_text}\n"
             f"*Image Suggestions:*\n{suggestions_text}\n"
         )
 
