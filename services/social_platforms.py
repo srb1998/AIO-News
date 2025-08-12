@@ -1,4 +1,4 @@
-# services/social_platforms.py
+# services/social_platforms.py 
 
 import aiohttp
 import asyncio
@@ -37,6 +37,31 @@ class InstagramService:
             self.daily_posts = 0
             self.last_reset = current_date
     
+    def _clean_instagram_caption(self, caption: str) -> str:
+        """Clean and validate Instagram caption"""
+        if not caption:
+            return ""
+        
+        # Remove problematic characters
+        cleaned = caption.encode('utf-8', 'ignore').decode('utf-8')
+        
+        # Instagram limits: 2200 characters
+        if len(cleaned) > 2200:
+            
+            truncated = cleaned[:2190]
+            last_period = truncated.rfind('.')
+            last_space = truncated.rfind(' ')
+            
+            if last_period > 1900:  
+                cleaned = truncated[:last_period + 1]
+            elif last_space > 1900:
+                cleaned = truncated[:last_space]
+            else: 
+                cleaned = truncated + "..."
+        
+        print(f"📱 Instagram caption: {len(cleaned)} characters")
+        return cleaned
+    
     async def check_posting_limit(self) -> Dict[str, Union[bool, int]]:
         """Check current posting limits from Instagram API"""
         try:
@@ -64,8 +89,8 @@ class InstagramService:
             print(f"❌ Error checking posting limit: {e}")
             return {"can_post": self.daily_posts < self.max_daily_posts, "posts_used": self.daily_posts, "posts_remaining": self.max_daily_posts - self.daily_posts}
     
-    async def create_media_container(self, media_url: str, media_type: str = "IMAGE") -> Optional[str]:
-        """Create a media container for single image/video"""
+    async def create_media_container(self, media_url: str, media_type: str = "IMAGE", caption: str = "") -> Optional[str]:
+        """Create a media container for single image/video - FIXED to include caption"""
         try:
             session = await self.get_session()
             url = f"{self.base_url}/{self.instagram_account_id}/media"
@@ -74,16 +99,25 @@ class InstagramService:
                 "access_token": self.access_token,
             }
             
+            if caption:
+                cleaned_caption = self._clean_instagram_caption(caption)
+                data["caption"] = cleaned_caption
+                print(f"📱 Adding caption to media container: {len(cleaned_caption)} chars")
+            
             if media_type == "IMAGE":
                 data["image_url"] = media_url
             elif media_type == "VIDEO":
                 data["video_url"] = media_url
                 data["media_type"] = "VIDEO"
             
+            print(f"🔄 Creating Instagram media container with caption: {bool(caption)}")
+            
             async with session.post(url, data=data) as response:
                 if response.status == 200:
                     result = await response.json()
-                    return result.get("id")
+                    container_id = result.get("id")
+                    print(f"✅ Media container created: {container_id}")
+                    return container_id
                 else:
                     error_text = await response.text()
                     print(f"❌ Failed to create media container: {response.status} - {error_text}")
@@ -93,24 +127,30 @@ class InstagramService:
             return None
     
     async def create_carousel_container(self, media_urls: List[str], caption: str = "") -> Optional[str]:
-        """Create a carousel container for multiple images/videos"""
+        """Create a carousel container for multiple images/videos - FIXED"""
         try:
-            # First, create individual media containers
+            # First, create individual media containers WITHOUT captions
             media_containers = []
             session = await self.get_session()
             
-            for media_url in media_urls[:10]:  # Instagram carousel limit is 10
+            print(f"🔄 Creating {len(media_urls)} media containers for carousel")
+            
+            for i, media_url in enumerate(media_urls[:10]):  # Instagram carousel limit is 10
                 # Determine media type based on URL extension
                 media_type = "VIDEO" if any(ext in media_url.lower() for ext in ['.mp4', '.mov', '.avi']) else "IMAGE"
-                container_id = await self.create_media_container(media_url, media_type)
+                # Don't add caption to individual containers - only to the main carousel
+                container_id = await self.create_media_container(media_url, media_type, caption="")
                 if container_id:
                     media_containers.append(container_id)
+                    print(f"✅ Container {i+1}/{len(media_urls)}: {container_id}")
             
             if not media_containers:
                 print("❌ No media containers created for carousel")
                 return None
             
-            # Create carousel container
+            print(f"🔄 Creating carousel container with {len(media_containers)} items")
+            
+            # Create carousel container with caption
             url = f"{self.base_url}/{self.instagram_account_id}/media"
             data = {
                 "access_token": self.access_token,
@@ -118,13 +158,18 @@ class InstagramService:
                 "children": ",".join(media_containers)
             }
             
+            # Add caption to carousel container - THIS IS THE FIX!
             if caption:
-                data["caption"] = caption
+                cleaned_caption = self._clean_instagram_caption(caption)
+                data["caption"] = cleaned_caption
+                print(f"📱 Adding caption to carousel: {len(cleaned_caption)} chars")
             
             async with session.post(url, data=data) as response:
                 if response.status == 200:
                     result = await response.json()
-                    return result.get("id")
+                    carousel_id = result.get("id")
+                    print(f"✅ Carousel container created: {carousel_id}")
+                    return carousel_id
                 else:
                     error_text = await response.text()
                     print(f"❌ Failed to create carousel container: {response.status} - {error_text}")
@@ -143,6 +188,8 @@ class InstagramService:
                 "creation_id": container_id
             }
             
+            print(f"🚀 Publishing container: {container_id}")
+            
             async with session.post(url, data=data) as response:
                 if response.status == 200:
                     result = await response.json()
@@ -160,7 +207,7 @@ class InstagramService:
             return False
     
     async def post_single_media(self, media_url: str, caption: str = "", media_type: str = "IMAGE") -> bool:
-        """Post single image or video"""
+        """Post single image or video - FIXED to include caption during creation"""
         self._reset_daily_counter()
         
         # Check posting limits
@@ -169,31 +216,20 @@ class InstagramService:
             print(f"❌ Daily posting limit reached: {limit_check['posts_used']}/{limit_check.get('quota_total', 25)}")
             return False
         
-        # Create media container
-        container_id = await self.create_media_container(media_url, media_type)
+        print(f"📱 Posting single {media_type.lower()} to Instagram")
+        print(f"   Media: {media_url}")
+        print(f"   Caption length: {len(caption) if caption else 0}")
+        
+        # Create media container WITH caption
+        container_id = await self.create_media_container(media_url, media_type, caption)
         if not container_id:
+            print("❌ Failed to create media container")
             return False
         
-        # Add caption if provided
-        if caption:
-            try:
-                session = await self.get_session()
-                url = f"{self.base_url}/{container_id}"
-                data = {
-                    "access_token": self.access_token,
-                    "caption": caption
-                }
-                async with session.post(url, data=data) as response:
-                    if response.status != 200:
-                        print(f"⚠️ Failed to add caption: {response.status}")
-            except Exception as e:
-                print(f"⚠️ Error adding caption: {e}")
-        
-        # Publish
         return await self.publish_container(container_id)
     
     async def post_carousel(self, media_urls: List[str], caption: str = "") -> bool:
-        """Post carousel with multiple media"""
+        """Post carousel with multiple media - FIXED"""
         self._reset_daily_counter()
         
         # Check posting limits
@@ -210,28 +246,36 @@ class InstagramService:
             print("⚠️ Instagram carousel limited to 10 items, truncating")
             media_urls = media_urls[:10]
         
-        # Create carousel container
+        print(f"📱 Posting carousel to Instagram ({len(media_urls)} items)")
+        print(f"   Caption length: {len(caption) if caption else 0}")
+        
+        # Create carousel container WITH caption
         container_id = await self.create_carousel_container(media_urls, caption)
         if not container_id:
+            print("❌ Failed to create carousel container")
             return False
         
         # Publish
         return await self.publish_container(container_id)
     
     async def post_story_content(self, images: List[str], videos: List[str], caption: str = "") -> bool:
-        """Intelligently post story content based on available media"""
+        """Intelligently post story content based on available media - FIXED"""
         all_media = images + videos
         
         if not all_media:
             print("❌ No media provided for Instagram post")
             return False
         
+        print(f"📱 Instagram post strategy: {len(all_media)} media items")
+        
         # Strategy: Use carousel for multiple items, single post for one item
         if len(all_media) == 1:
             media_url = all_media[0]
             media_type = "VIDEO" if media_url in videos else "IMAGE"
+            print(f"📱 Using single post strategy: {media_type}")
             return await self.post_single_media(media_url, caption, media_type)
         else:
+            print(f"📱 Using carousel strategy: {len(all_media)} items")
             return await self.post_carousel(all_media, caption)
     
     def get_status(self) -> Dict:

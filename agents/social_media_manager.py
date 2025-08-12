@@ -126,7 +126,8 @@ class SocialMediaManagerAgent:
             content=headline,
             image_suggestions=image_suggestions,
             twitter_content=twitter_content,
-            instagram_content=instagram_content
+            instagram_content=instagram_content,
+            hashtags=instagram_hashtags
         )
 
         # Create approval requests with platform-specific data
