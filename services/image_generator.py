@@ -119,7 +119,7 @@ class ImageGenerator:
                 folder=folder_path,
                 transformation=[
                     {"width": width, "height": height, "crop": "fill"},
-                    {"quality": "auto:best", "format": "jpg"}
+                    {"quality": "best", "format": "jpg"}
                 ]
             )
             return cloud_result["secure_url"]
@@ -184,7 +184,7 @@ class ImageGenerator:
                 public_id=f"processed_{datetime.now().strftime('%Y%m%d%H%M%S')}",
                 transformation=[
                     {"width": width, "height": height, "crop": "fill"},
-                    {"quality": "auto:best", "format": "jpg"}
+                    {"quality": "best", "format": "jpg"}
                 ]
             )
             print(f"✅ Headline applied and uploaded to Cloudinary: {cloud_result['secure_url']}")
