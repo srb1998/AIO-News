@@ -104,7 +104,7 @@ class ManagerAgent:
                 'selected': []
             }
 
-            # Send selection notification (limit to top 4 for clean UI)
+            # Send selection notification
             display_headlines = final_headlines[:5]
             timeout = settings.WORKFLOW_TIMING["hitl_selection_timeout_seconds"]
             print(f"GATE 1: Presenting {len(display_headlines)} headlines for selection. Waiting {timeout}s...")
