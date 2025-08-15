@@ -1,3 +1,5 @@
+# cloudinary_uploader.py
+
 import cloudinary
 import cloudinary.uploader
 import json
@@ -6,7 +8,6 @@ import asyncio
 import tempfile
 from typing import Dict
 
-# Ensure Cloudinary is configured (it will be by the time this is called)
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
     api_key=os.getenv("CLOUDINARY_API_KEY"),
@@ -41,7 +42,7 @@ async def upload_json_to_cloudinary(data: Dict, workflow_id: str) -> str:
             temp_filepath,
             folder=folder_path,
             public_id=public_id,
-            resource_type="raw" # Use "raw" for non-media files like JSON
+            resource_type="raw"
         )
         
         # Clean up the temporary file

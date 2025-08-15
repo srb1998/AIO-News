@@ -143,27 +143,26 @@ class ImageGenerator:
         workflow_id: str
     ) -> str:
         """
-        Applies the advanced headline to a user-provided image and uploads to Cloudinary.
+        High-quality headline application with better Cloudinary settings.
         """
-        print(f"🎨 Applying advanced headline to user image for {platform} (Story {story_id})")
-        temp_input_path = f"temp_{story_id}_{platform}_user_input.jpg"
+        print(f"🎨 Applying headline with high quality for {platform}")
+        temp_input_path = f"temp_{story_id}_{platform}_user_input.png" 
         temp_output_path = f"temp_{story_id}_{platform}_user_final.png"
 
         try:
-            # Step 1: Get the user-provided image to a local path
             if image_path_or_url.startswith("http"):
-                 async with aiohttp.ClientSession() as session:
+                async with aiohttp.ClientSession() as session:
                     async with session.get(image_path_or_url) as resp:
                         if resp.status == 200:
                             with open(temp_input_path, 'wb') as f:
                                 f.write(await resp.read())
                             image_path = temp_input_path
                         else:
-                            raise Exception(f"Failed to download image from URL: {image_path_or_url}")
+                            raise Exception(f"Failed to download: {image_path_or_url}")
             else:
                 image_path = image_path_or_url
 
-            # Step 2: Apply the text overlay using your advanced Pillow function
+            # Apply headline overlay
             self.add_professional_headline(
                 image_path=image_path,
                 output_path=temp_output_path,
@@ -172,31 +171,43 @@ class ImageGenerator:
                 highlight_color="#FF6B35"
             )
 
-            # Step 3: Upload the processed image to Cloudinary
+            # Upload with HIGH QUALITY settings
             specs = self.platform_specs.get(platform, self.platform_specs["instagram"])
             width, height = map(int, specs["dimensions"].split('x'))
-            
+
             folder_path = f"news/processed/{workflow_id}/{story_id}/{platform}"
 
+            # High-quality Cloudinary upload
             cloud_result = cloudinary.uploader.upload(
                 temp_output_path,
                 folder=folder_path,
                 public_id=f"processed_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                quality="auto:best",  
+                format="jpg",
                 transformation=[
-                    {"width": width, "height": height, "crop": "fill"},
-                    {"quality": "best", "format": "jpg"}
-                ]
+                    {
+                        "width": width, 
+                        "height": height, 
+                        "crop": "fill",
+                        "gravity": "center"
+                    }
+                ],
+                
+                fetch_format="auto",
+                flags="progressive"
             )
-            print(f"✅ Headline applied and uploaded to Cloudinary: {cloud_result['secure_url']}")
+
+            print(f"✅ High-quality image uploaded: {cloud_result['secure_url']}")
             return cloud_result["secure_url"]
 
         except Exception as e:
-            print(f"❌ Failed to apply headline to user image: {e}")
+            print(f"❌ Failed to process image: {e}")
             return ""
         finally:
             for p in [temp_input_path, temp_output_path]:
                 if os.path.exists(p):
                     os.remove(p)
+
 
     def add_professional_headline(
         self, image_path: str, output_path: str, headline: str, subheadline: str = None,
@@ -216,9 +227,18 @@ class ImageGenerator:
             return ImageFont.load_default()
 
         # Load base image
-        img = Image.open(image_path).convert("RGBA")
+        img = Image.open(image_path)
+    
+        # Keep original format if it's already high quality
+        if img.format in ['PNG', 'TIFF']:
+            img = img.convert("RGBA")
+        else:
+            img = img.convert("RGB")
+        
         W, H = img.size
         max_width = int(W * max_width_ratio)
+    
+        # Use high-quality drawing
         draw = ImageDraw.Draw(img, "RGBA")
 
         # FIXED FONT SIZE SCALING - Use larger base size and better scaling
@@ -355,7 +375,11 @@ class ImageGenerator:
 
                 draw.text((x_pos, y_pos), sub_line, font=sub_font, fill="#EEEEEE")
 
-        img.convert("RGB").save(output_path, "PNG", quality=95)
+        if output_path.lower().endswith('.png'):
+                img.save(output_path, "PNG", optimize=False, compress_level=1)
+        else:
+            img.save(output_path, "JPEG", quality=98, optimize=False, subsampling=0)
+
 
     def _create_platform_prompt(self, headline: str, summary: str, platform: str, specs: dict) -> str:
         """Generates the prompt for the AI image generator."""

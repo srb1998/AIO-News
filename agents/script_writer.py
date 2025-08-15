@@ -139,14 +139,14 @@ class ScriptWriterAgent:
             FOR ALL PLATFORMS:
             - Use SPECIFIC facts and numbers from the investigation data above
             - Include recent developments and expert opinions where relevant
-            - Present Indian perspective prominently
             - NO generic statements - everything must be specific and factual
             - Reference current global context (Trump presidency, current year 2025)
             - Show clear opinion and analysis, not just reporting
             - Use conversational, engaging tone like Palki Sharma
-            
+            - Don't use Palki Sharma's name on any script
+
             FOR YOUTUBE SPECIFICALLY:
-            - Create a 3-4 minute anchor-style script
+            - Create a 2-3 minute anchor-style script
             - Structure: Hook → Context → Analysis → Indian Angle → Impact → Conclusion
             - Include specific timestamps and pacing
             - Add natural pauses and emphasis points
@@ -159,7 +159,7 @@ class ScriptWriterAgent:
             - Include clear takeaway message
             
             FOR TWITTER:
-            - Create thread-worthy content with specific information
+            - Create content with specific information
             - Include key statistics or quotes
             - Make it shareable with clear hook
 
@@ -167,20 +167,19 @@ class ScriptWriterAgent:
 
             {{
               "instagram": {{
-                "story_content": "Write a detailed, informative caption using specific facts from investigation. Include expert opinions or official statements. Present clear Indian perspective. End with definitive conclusion, not questions. Use conversational tone like explaining to a friend.",
+                "story_content": "Write a detailed, informative caption using specific facts from the investigation. Begin with a strong, attention-grabbing first line that makes people want to read more. Include expert opinions or official statements. Present a clear Indian perspective. End with a definitive conclusion, not questions.",
                 "estimated_engagement": "high/medium/low",
                 "hashtags": ["#FactCheck", "#IndianPerspective", "#GlobalNews", "relevant topic hashtags"],
                 "content_style": "informative_conversational"
               }},
               "twitter": {{
-                "tweet": "Create a compelling thread starter with specific hook, key fact with numbers, Indian angle, and strong conclusion. No questions - make definitive statements.",
+                "tweet": "Write a concise, update-style news tweet. Start with a strong hook, include one key fact or number, and end with a clear, definitive conclusion. Do not create a thread or provide a detailed breakdown. No questions - make definitive statements.",
                 "hashtags": ["#NewsUpdate", "#IndiaFirst", "#FactsMatter", "relevant hashtags"],
                 "image_suggestions": ["Specific infographic showing key statistics", "Photo of main subject/location"],
                 "posting_priority": "immediate/scheduled",
-                "thread_potential": true
               }},
               "youtube": {{
-                "full_script": "CREATE COMPLETE 3-4 MINUTE SCRIPT:
+                "full_script": "CREATE COMPLETE 2-3 MINUTE SCRIPT with as per below hook,context etc but dont include [HOOK - 15 seconds],[CONTEXT - 30 seconds] etc keyword in the script:
                 
                 [HOOK - 15 seconds]: Start with attention-grabbing statement using specific fact or recent development
                 
@@ -188,7 +187,7 @@ class ScriptWriterAgent:
                 
                 [ANALYSIS - 90 seconds]: Deep dive into verified facts, expert opinions, official positions. Include specific numbers, quotes, developments
                 
-                [INDIAN PERSPECTIVE - 45 seconds]: How this affects India, Indian interests, our stance vs others
+                [INDIAN PERSPECTIVE - 30 seconds]: How this affects India, Indian interests, our stance vs others
                 
                 [GLOBAL IMPACT - 30 seconds]: Broader implications using impact analysis data
                 
@@ -196,7 +195,7 @@ class ScriptWriterAgent:
                 
                 WRITE ACTUAL SCRIPT CONTENT - not just structure descriptions. Use natural speaking rhythm with pauses marked as [PAUSE]. Include emphasis points [EMPHASIS]. Make it sound like Palki Sharma's style - confident, opinionated, fact-based.",
                 
-                "estimated_duration": "3-4 minutes",
+                "estimated_duration": "2-4 minutes",
                 "image_suggestions": [
                   "B-roll: Specific relevant footage based on story",
                   "Graphics: Key statistics from verified facts",
@@ -212,7 +211,6 @@ class ScriptWriterAgent:
             REMEMBER: 
             - Use SPECIFIC information from the comprehensive investigation data
             - No generic news speak - make it conversational and opinionated
-            - Include Indian perspective in ALL platforms
             - Reference actual facts, numbers, expert opinions from the data provided
             - End with conclusions, not questions
             - Make it sound authoritative but approachable like Palki Sharma
@@ -256,7 +254,6 @@ class ScriptWriterAgent:
                     "hashtags": ig_data.get("hashtags", []),
                     "estimated_engagement": ig_data.get("estimated_engagement", "medium"),
                     "content_style": ig_data.get("content_style", "informative"),
-                    # Add context from investigation
                     "key_facts_used": story.get("verified_facts", [])[:2],
                     "indian_angle": story.get("indian_perspective", "")[:100]
                 }
@@ -274,8 +271,6 @@ class ScriptWriterAgent:
                         story.get("verified_facts", [])
                     ),
                     "posting_priority": tw_data.get("posting_priority", "scheduled"),
-                    "thread_potential": tw_data.get("thread_potential", False),
-                    # Enhanced context
                     "facts_to_highlight": story.get("verified_facts", [])[:3],
                     "expert_backing": story.get("expert_insights", [])[:1]
                 }
@@ -298,10 +293,7 @@ class ScriptWriterAgent:
                     # Rich contextual data
                     "background_context": story.get("background_context", "")[:200],
                     "key_players_mentioned": story.get("key_players", []),
-                    "recent_developments": story.get("recent_developments", [])[:2],
-                    "expert_quotes_available": story.get("expert_insights", [])[:2],
-                    "official_statements": story.get("official_positions", [])[:1],
-                    "indian_perspective_angle": story.get("indian_perspective", "")[:150]
+                    "recent_developments": story.get("recent_developments", [])[:2]
                 }
 
             return scripts
@@ -380,7 +372,6 @@ class ScriptWriterAgent:
                 "image_suggestions": ["Infographic with key statistics", "News graphic with headline"],
                 "posting_priority": "immediate" if story.get("importance_score", 0) >= 9 else "scheduled",
                 "facts_to_highlight": verified_facts[:3],
-                "thread_potential": True
             },
             "youtube": {
                 "full_script": f"""
@@ -419,8 +410,7 @@ class ScriptWriterAgent:
                 "developments_count": len(recent_developments)
             }
         }
-
-    # Keep existing helper methods unchanged
+    
     def _extract_json_from_response(self, content: str) -> str:
         """Extract JSON content from LLM response, handling markdown formatting"""
         # Remove markdown code blocks if present
