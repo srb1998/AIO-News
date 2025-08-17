@@ -152,6 +152,7 @@ class ScriptWriterAgent:
             - Add natural pauses and emphasis points
             - Include specific data points and expert quotes
             - End with strong opinion/takeaway
+            - If news is not very very important make 2 min max script. And if news is important then make upto 4 mins of script
             
             FOR INSTAGRAM:
             - Create engaging story content that works as standalone post

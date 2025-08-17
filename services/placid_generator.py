@@ -69,6 +69,7 @@ class PlacidTemplateGenerator:
         """Generate image using CORRECT Placid API."""
         
         payload = {
+            "template_uuid": template_id,
             "create_now": True,
             "layers": {
                 "headline": {
