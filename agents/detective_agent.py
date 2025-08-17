@@ -189,6 +189,9 @@ class DetectiveAgent:
             processed_data["success"] = True
             
             print(f"✅ Brave AI ({search_type}): Found {len(processed_data.get('facts') or processed_data.get('developments') or processed_data.get('context', []))} items")
+            
+            await asyncio.sleep(1.5)
+        
             return processed_data
             
         except Exception as e:

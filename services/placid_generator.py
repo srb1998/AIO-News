@@ -34,14 +34,6 @@ class PlacidTemplateGenerator:
     ) -> Optional[str]:
         """
         Generate image from Placid template with dynamic content.
-        
-        Args:
-            platform: Target platform (instagram, twitter, youtube)
-            headline: Dynamic headline text
-            background_image_url: URL of user's uploaded image
-            story_id: Unique story identifier
-            workflow_id: Workflow identifier
-            additional_data: Any additional dynamic data for template
         """
         try:
             template_id = self.template_ids.get(platform)
@@ -74,35 +66,71 @@ class PlacidTemplateGenerator:
         background_image_url: str,
         additional_data: Dict
     ) -> Optional[str]:
-        """Generate image using Placid API."""
+        """Generate image using CORRECT Placid API."""
         
-        # Placid API payload - map your template's dynamic fields
         payload = {
-            "template_uuid": template_id,
-            "data": {
-                # Map these field names to match your Placid template
-                "headline": headline,
-                "background_image": background_image_url,
-                **additional_data  # Any additional dynamic fields
-            },
-            "create_now": True,  # Generate immediately
-            "webhook_url": None
+            "create_now": True,
+            "layers": {
+                "headline": {
+                    "text": headline
+                },
+                "background_image": {
+                    "image": background_image_url
+                }
+            }
         }
+        
+        if additional_data:
+            for key, value in additional_data.items():
+                if key == "subheadline" and value:
+                    payload["layers"][key] = {"text": value}
 
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"{self.base_url}/rest",
+                f"{self.base_url}/rest/{template_id}",
                 headers=self.headers,
                 json=payload
             ) as response:
                 if response.status == 200:
                     result = await response.json()
-                    # Placid returns the generated image URL directly
-                    return result.get("image_url") or result.get("url")
+                    
+                    if result.get("status") == "finished":
+                        return result.get("image_url")
+                    elif result.get("status") == "queued":
+                        # Poll for completion
+                        return await self._poll_for_completion(result.get("polling_url"))
+                    else:
+                        # Sometimes returns image_url directly
+                        return result.get("image_url")
                 else:
                     error_text = await response.text()
                     print(f"❌ Placid API error: {response.status} - {error_text}")
                     return None
+                    
+    async def _poll_for_completion(self, polling_url: str) -> Optional[str]:
+        """Poll Placid for image completion when using async generation."""
+        if not polling_url:
+            return None
+            
+        max_attempts = 30
+        for attempt in range(max_attempts):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(polling_url, headers=self.headers) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            if result.get("status") == "finished":
+                                return result.get("image_url")
+                            elif result.get("status") == "error":
+                                print(f"❌ Placid generation error: {result}")
+                                return None
+                        
+                await asyncio.sleep(1)
+            except Exception as e:
+                print(f"❌ Polling error: {e}")
+                
+        print("❌ Placid generation timeout")
+        return None
 
     async def _upload_to_cloudinary(
         self, 
@@ -129,7 +157,7 @@ class PlacidTemplateGenerator:
                 image_data,
                 folder=folder_path,
                 public_id=f"placid_template_{story_id}_{platform}",
-                format="png",  # Use PNG for high quality
+                format="png",
                 quality="auto:best"
             )
             
@@ -185,14 +213,13 @@ class PlacidTemplateGenerator:
         return results
 
 
-# Integration with your existing ImageGenerator class
 class PlacidImageGenerator(ImageGenerator):
     """Enhanced ImageGenerator using Placid templates."""
     
     def __init__(self):
         super().__init__()
         self.placid_generator = PlacidTemplateGenerator()
-        self.use_placid_templates = True  # Feature flag
+        self.use_placid_templates = True
     
     async def apply_headline_to_image(
         self,
@@ -264,7 +291,6 @@ class PlacidImageGenerator(ImageGenerator):
                 )
             
             # Option 2: Use Placid template with no background (text-only design)
-            # You can create a separate template for this case
             else:
                 print("⚠️ AI image failed, using text-only Placid template")
                 return await self.placid_generator.generate_from_template(
@@ -290,7 +316,6 @@ class PlacidImageGenerator(ImageGenerator):
         try:
             specs = self.platform_specs.get(platform, self.platform_specs["instagram"])
             
-            # Updated prompt - no text needed since Placid will add it
             prompt = (
                 f"Clean, professional background image for {platform.upper()} post. "
                 f"The image must be {specs['dimensions']} pixels. "
