@@ -11,6 +11,7 @@ from services.social_platforms import SocialPlatformManager
 from core.approval_queue import ApprovalQueue
 from config.settings import settings
 from services.image_generator import ImageGenerator
+from services.placid_generator import PlacidImageGenerator
 
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -23,12 +24,11 @@ class SocialMediaManagerAgent:
         self.name = "SocialMediaManager"
         self.telegram_bot = telegram_bot
         self.approval_queue = ApprovalQueue()
-        self.image_gen = ImageGenerator()
+        self.image_gen = PlacidImageGenerator()
         self.platforms = ["twitter", "instagram", "youtube"]
         self.chat_id = settings.SERVICE_CONFIG.get("telegram_chat_id", "YOUR_CHAT_ID")
         self.max_media_per_post = 10
         
-        # NEW: Initialize real social platform posting
         self.social_platform_manager = SocialPlatformManager()
     
     def _format_post_content(self, platform: str, headline: str, platform_content: str = "", hashtags: List[str] = None) -> str:
