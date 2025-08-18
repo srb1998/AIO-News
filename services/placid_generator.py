@@ -23,6 +23,13 @@ class PlacidTemplateGenerator:
             "youtube": "your_youtube_template_id"
         }
 
+        self.template_layers = {
+            "instagram": {
+                "headline": "headline",
+                "background_image": "background_image"
+            }
+        }
+
     async def generate_from_template(
         self, 
         platform: str, 
@@ -42,7 +49,7 @@ class PlacidTemplateGenerator:
 
             # Step 1: Generate image from template
             placid_url = await self._create_image_from_template(
-                template_id, headline, background_image_url, additional_data or {}
+                template_id, platform, headline, background_image_url, additional_data or {}
             )
             
             if not placid_url:
@@ -62,20 +69,28 @@ class PlacidTemplateGenerator:
     async def _create_image_from_template(
         self, 
         template_id: str, 
+        platform: str,
         headline: str, 
         background_image_url: str,
         additional_data: Dict
     ) -> Optional[str]:
         """Generate image using CORRECT Placid API."""
+        print(f"headline - {headline}")
+        print(f"background_image - {background_image_url}")
         
+        layers = self.template_layers.get(platform)
+        if not layers:
+            print(f"❌ No layer configuration found for {platform}")
+            return None
+            
         payload = {
             "template_uuid": template_id,
             "create_now": True,
             "layers": {
-                "headline": {
+                layers["headline"]: {
                     "text": headline
                 },
-                "background_image": {
+                layers["background_image"]: {
                     "image": background_image_url
                 }
             }
@@ -103,6 +118,9 @@ class PlacidTemplateGenerator:
                     else:
                         # Sometimes returns image_url directly
                         return result.get("image_url")
+                elif response.status == 404:
+                    print(f"❌ Placid API error: 404 - Template not found. Please check your template ID.")
+                    return None
                 else:
                     error_text = await response.text()
                     print(f"❌ Placid API error: {response.status} - {error_text}")
@@ -274,79 +292,36 @@ class PlacidImageGenerator(ImageGenerator):
         """
         Generate AI image then apply Placid template, or use Placid with text-only template.
         """
-        if self.use_placid_templates:
-            # Option 1: Generate base AI image first, then apply Placid template
-            ai_image_url = await self._generate_base_ai_image(
-                headline, summary, platform, workflow_id, story_id
-            )
+        # if self.use_placid_templates:
+        #     # Option 1: Generate base AI image first, then apply Placid template
+        #     ai_image_url = await self._generate_base_ai_image(
+        #         headline, summary, platform, workflow_id, story_id
+        #     )
             
-            if ai_image_url:
-                additional_data = {"subheadline": summary} if summary else {}
-                return await self.placid_generator.generate_from_template(
-                    platform=platform,
-                    headline=headline, 
-                    background_image_url=ai_image_url,
-                    story_id=story_id,
-                    workflow_id=workflow_id,
-                    additional_data=additional_data
-                )
+        #     if ai_image_url:
+        #         additional_data = {"subheadline": summary} if summary else {}
+        #         return await self.placid_generator.generate_from_template(
+        #             platform=platform,
+        #             headline=headline, 
+        #             background_image_url=ai_image_url,
+        #             story_id=story_id,
+        #             workflow_id=workflow_id,
+        #             additional_data=additional_data
+        #         )
             
-            # Option 2: Use Placid template with no background (text-only design)
-            else:
-                print("⚠️ AI image failed, using text-only Placid template")
-                return await self.placid_generator.generate_from_template(
-                    platform=platform,
-                    headline=headline,
-                    background_image_url="",  # Empty for text-only template
-                    story_id=story_id,
-                    workflow_id=workflow_id,
-                    additional_data={"subheadline": summary}
-                )
+        #     # Option 2: Use Placid template with no background (text-only design)
+        #     else:
+        #         print("⚠️ AI image failed, using text-only Placid template")
+        #         return await self.placid_generator.generate_from_template(
+        #             platform=platform,
+        #             headline=headline,
+        #             background_image_url="",  # Empty for text-only template
+        #             story_id=story_id,
+        #             workflow_id=workflow_id,
+        #             additional_data={"subheadline": summary}
+        #         )
         
         # Fallback to original method
         return await super().generate_social_image(
-            headline, summary, story_id, platform, workflow_id
+        headline, summary, story_id, platform, workflow_id
         )
-        
-    async def _generate_base_ai_image(
-        self, headline: str, summary: str, platform: str, workflow_id: str, story_id: str
-    ) -> str:
-        """Generate base AI image without text overlay for Placid template use."""
-        temp_ai_path = f"temp_{story_id}_{platform}_ai_base.jpg"
-        
-        try:
-            specs = self.platform_specs.get(platform, self.platform_specs["instagram"])
-            
-            prompt = (
-                f"Clean, professional background image for {platform.upper()} post. "
-                f"The image must be {specs['dimensions']} pixels. "
-                f"Visual theme related to: '{headline}'. "
-                f"No text, logos, or overlays - clean background only for template overlay. "
-                f"High-resolution, professional quality."
-            )
-            
-            base_image_bytes = await llm_client.generate_image(prompt)
-            if not base_image_bytes:
-                return ""
-
-            with open(temp_ai_path, "wb") as f:
-                f.write(base_image_bytes)
-            
-            # Upload base image to Cloudinary
-            folder_path = f"news/ai_generated/{workflow_id}/{story_id}"
-            cloud_result = cloudinary.uploader.upload(
-                temp_ai_path,
-                folder=folder_path,
-                public_id=f"ai_base_{platform}",
-                format="jpg",
-                quality="auto:best"
-            )
-            
-            return cloud_result["secure_url"]
-            
-        except Exception as e:
-            print(f"❌ Base AI image generation failed: {e}")
-            return ""
-        finally:
-            if os.path.exists(temp_ai_path):
-                os.remove(temp_ai_path)
