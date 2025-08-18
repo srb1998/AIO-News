@@ -4,21 +4,20 @@ import os
 from typing import Dict, Optional, List
 import cloudinary
 import cloudinary.uploader
-
+from urllib.parse import quote_plus
 from services.image_generator import ImageGenerator
-from core.llm_client import llm_client
+
 
 class PlacidTemplateGenerator:
+    """
+    Generates Placid images using the direct URL-based method, which is
+    synchronous and more efficient.
+    """
     def __init__(self):
-        self.api_key = os.getenv("PLACID_API_KEY")
-        self.base_url = "https://api.placid.app/api"
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
+        self.base_url = "https://placid.app/u/"
         
         self.template_ids = {
-            "instagram": "3ub0a06bci9lw",
+            "instagram": os.getenv("PLACID_INSTAGRAM_TEMPLATE_ID"),
             "twitter": "your_twitter_template_id", 
             "youtube": "your_youtube_template_id"
         }
@@ -40,22 +39,23 @@ class PlacidTemplateGenerator:
         additional_data: Dict = None
     ) -> Optional[str]:
         """
-        Generate image from Placid template with dynamic content.
+        Generates an image from a Placid template and uploads it to Cloudinary.
         """
         try:
             template_id = self.template_ids.get(platform)
             if not template_id:
                 raise ValueError(f"No Placid template configured for {platform}")
 
-            # Step 1: Generate image from template
-            placid_url = await self._create_image_from_template(
+            # Step 1: Construct the final Placid image URL directly.
+            placid_url = self._create_image_url(
                 template_id, platform, headline, background_image_url, additional_data or {}
             )
             
             if not placid_url:
                 return None
             
-            # Step 2: Upload to Cloudinary for permanent storage
+            # Step 2: Download from the Placid URL and upload to Cloudinary.
+            print(f"Uploading generated Placid image to Cloudinary...")
             cloudinary_url = await self._upload_to_cloudinary(
                 placid_url, platform, story_id, workflow_id
             )
@@ -66,7 +66,7 @@ class PlacidTemplateGenerator:
             print(f"❌ Placid template generation failed: {e}")
             return None
 
-    async def _create_image_from_template(
+    def _create_image_url(
         self, 
         template_id: str, 
         platform: str,
@@ -74,86 +74,36 @@ class PlacidTemplateGenerator:
         background_image_url: str,
         additional_data: Dict
     ) -> Optional[str]:
-        """Generate image using CORRECT Placid API."""
-        print(f"headline - {headline}")
-        print(f"background_image - {background_image_url}")
-        
+        """
+        Constructs the Placid URL with dynamic content in the query parameters.
+        """
         layers = self.template_layers.get(platform)
         if not layers:
             print(f"❌ No layer configuration found for {platform}")
             return None
-            
-        payload = {
-            "template_uuid": template_id,
-            "create_now": True,
-            "layers": {
-                layers["headline"]: {
-                    "text": headline
-                },
-                layers["background_image"]: {
-                    "image": background_image_url
-                }
-            }
-        }
-        
-        if additional_data:
-            for key, value in additional_data.items():
-                if key == "subheadline" and value:
-                    payload["layers"][key] = {"text": value}
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{self.base_url}/rest/{template_id}",
-                headers=self.headers,
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    
-                    if result.get("status") == "finished":
-                        print("finished")
-                        return result.get("image_url")
-                    elif result.get("status") == "queued":
-                        # Poll for completion
-                        print("queued")
-                        return await self._poll_for_completion(result.get("polling_url"))
-                    else:
-                        # Sometimes returns image_url directly
-                        print("image_url")
-                        return result.get("image_url")
-                elif response.status == 404:
-                    print(f"❌ Placid API error: 404 - Template not found. Please check your template ID.")
-                    return None
-                else:
-                    error_text = await response.text()
-                    print(f"❌ Placid API error: {response.status} - {error_text}")
-                    return None
-                    
-    async def _poll_for_completion(self, polling_url: str) -> Optional[str]:
-        """Poll Placid for image completion when using async generation."""
-        if not polling_url:
-            return None
-            
-        max_attempts = 30
-        for attempt in range(max_attempts):
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(polling_url, headers=self.headers) as response:
-                        if response.status == 200:
-                            result = await response.json()
-                            if result.get("status") == "finished":
-                                return result.get("image_url")
-                            elif result.get("status") == "error":
-                                print(f"❌ Placid generation error: {result}")
-                                return None
-                        
-                await asyncio.sleep(1)
-            except Exception as e:
-                print(f"❌ Polling error: {e}")
-                
-        print("❌ Placid generation timeout")
-        return None
+        headline_layer_name = layers["headline"]
+        image_layer_name = layers["background_image"]
 
+        # URL encode all dynamic content
+        encoded_headline = quote_plus(headline)
+        encoded_background_url = quote_plus(background_image_url)
+
+        # Construct the URL as per the Placid documentation
+        final_url = (
+            f"{self.base_url}{template_id}?"
+            f"{headline_layer_name}[text]={encoded_headline}&"
+            f"{image_layer_name}[image]={encoded_background_url}"
+        )
+
+        # Handle subheadline if provided
+        if additional_data and additional_data.get("subheadline"):
+            encoded_subheadline = quote_plus(additional_data["subheadline"])
+            final_url += f"&subheadline[text]={encoded_subheadline}"
+
+        print(f"✅ Constructed Placid URL: {final_url}")
+        return final_url
+                    
     async def _upload_to_cloudinary(
         self, 
         placid_image_url: str, 
@@ -161,18 +111,19 @@ class PlacidTemplateGenerator:
         story_id: str, 
         workflow_id: str
     ) -> str:
-        """Download from Placid and upload to Cloudinary for permanent storage."""
+        """
+        Downloads the image from the generated Placid URL and uploads it to Cloudinary.
+        """
         try:
-            # Download the generated image from Placid
             async with aiohttp.ClientSession() as session:
                 async with session.get(placid_image_url) as response:
                     if response.status == 200:
                         image_data = await response.read()
                     else:
-                        print(f"❌ Failed to download from Placid: {response.status}")
+                        print(f"❌ Failed to download from Placid URL ({response.status})")
                         return ""
 
-            # Upload to Cloudinary with high quality settings
+            # Upload to Cloudinary
             folder_path = f"news/processed/{workflow_id}/{story_id}/{platform}"
             
             cloud_result = cloudinary.uploader.upload(
@@ -180,59 +131,17 @@ class PlacidTemplateGenerator:
                 folder=folder_path,
                 public_id=f"placid_template_{story_id}_{platform}",
                 format="png",
-                quality="auto:best"
+                quality="auto:best",
+                tags=["system_generated"]
             )
             
-            print(f"✅ Placid image uploaded to Cloudinary: {cloud_result['secure_url']}")
-            return cloud_result["secure_url"]
+            secure_url = cloud_result.get("secure_url", "")
+            print(f"✅ Placid image uploaded to Cloudinary: {secure_url}")
+            return secure_url
             
         except Exception as e:
             print(f"❌ Cloudinary upload failed: {e}")
             return ""
-
-    async def generate_for_multiple_platforms(
-        self, 
-        headline: str, 
-        background_image_url: str, 
-        story_id: str,
-        workflow_id: str,
-        platforms: List[str] = None,
-        additional_data: Dict = None
-    ) -> Dict[str, str]:
-        """Generate templates for multiple platforms simultaneously."""
-        
-        if not platforms:
-            platforms = ["instagram", "twitter", "youtube"]
-        
-        # Create concurrent tasks for all platforms
-        tasks = []
-        for platform in platforms:
-            task = self.generate_from_template(
-                platform=platform,
-                headline=headline,
-                background_image_url=background_image_url,
-                story_id=story_id,
-                workflow_id=workflow_id,
-                additional_data=additional_data
-            )
-            tasks.append((platform, task))
-        
-        # Execute all tasks concurrently
-        results = {}
-        for platform, task in tasks:
-            try:
-                url = await task
-                if url:
-                    results[platform] = url
-                    print(f"✅ {platform} Placid template created: {url}")
-                else:
-                    print(f"❌ {platform} Placid template failed")
-                    results[platform] = ""
-            except Exception as e:
-                print(f"❌ {platform} Placid template error: {e}")
-                results[platform] = ""
-        
-        return results
 
 
 class PlacidImageGenerator(ImageGenerator):
