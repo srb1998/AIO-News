@@ -111,12 +111,15 @@ class PlacidTemplateGenerator:
                     result = await response.json()
                     
                     if result.get("status") == "finished":
+                        print("finished")
                         return result.get("image_url")
                     elif result.get("status") == "queued":
                         # Poll for completion
+                        print("queued")
                         return await self._poll_for_completion(result.get("polling_url"))
                     else:
                         # Sometimes returns image_url directly
+                        print("image_url")
                         return result.get("image_url")
                 elif response.status == 404:
                     print(f"❌ Placid API error: 404 - Template not found. Please check your template ID.")
