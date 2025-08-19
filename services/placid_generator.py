@@ -17,7 +17,7 @@ class PlacidTemplateGenerator:
     def __init__(self):
         self.base_url = "https://placid.app/u/"
 
-        template_ids_str = os.getenv("PLACID_INSTAGRAM_TEMPLATE_IDS", "")
+        template_ids_str = os.getenv("TEMPLATE_ID", "")
         instagram_templates = []
         if template_ids_str:
             instagram_templates = [item.strip() for item in template_ids_str.split(',')]
