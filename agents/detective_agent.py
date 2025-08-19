@@ -139,7 +139,9 @@ class DetectiveAgent:
         content_data["background_context"] = brave_background.get("context", "")
         content_data["expert_opinions"] = brave_facts.get("expert_views", [])
         content_data["official_statements"] = brave_facts.get("official_statements", [])
-        content_data["data_sources_count"] = len([r for r in results[1:4] if r.get("success")])
+
+        brave_results_list = [brave_facts, brave_recent, brave_background]
+        content_data["data_sources_count"] = len([res for res in brave_results_list if res.get("success")])
         
         # Cache the enhanced result
         cache_manager.set(cache_key, content_data, expire_hours=12)
@@ -183,7 +185,7 @@ class DetectiveAgent:
             
             data = response.json()
             results = data.get('results', [])
-            
+            print("brave_results:", results)
             # Process results based on search type
             processed_data = await self._process_brave_results(results, search_type)
             processed_data["success"] = True
@@ -235,6 +237,17 @@ class DetectiveAgent:
                 # Build comprehensive background context
                 if description and len(description) > 50:
                     processed["context"] += f" {description}"
+
+        # Fallback if any category is empty
+        if search_type == "facts" and not processed["facts"]:
+            print("⚠️ No specific facts found via regex, using top descriptions as fallback.")
+            for r in results[:3]:
+                processed["facts"].append(r.get('description', ''))
+        
+        if search_type == "recent" and not processed["developments"]:
+            print("⚠️ No specific developments found via regex, using top descriptions as fallback.")
+            for r in results[:3]:
+                processed["developments"].append(r.get('description', ''))
         
         # Clean and limit results
         processed["facts"] = list(set(processed["facts"]))[:8]
