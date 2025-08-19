@@ -1,9 +1,10 @@
+# news_sources.py
 import feedparser
 import requests
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
 import re
-# from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup
 from config.settings import settings
 from core.brave_client import brave_client
 import time
@@ -179,11 +180,11 @@ class NewsSourceManager:
             return entry.media_thumbnail[0].get('url', '') if entry.media_thumbnail else ''
         
         # Try to extract from description HTML
-        # if hasattr(entry, 'description'):
-        #     soup = BeautifulSoup(entry.description, 'html.parser')
-        #     img_tag = soup.find('img')
-        #     if img_tag and img_tag.get('src'):
-        #         return img_tag['src']
+        if hasattr(entry, 'description'):
+            soup = BeautifulSoup(entry.description, 'html.parser')
+            img_tag = soup.find('img')
+            if img_tag and img_tag.get('src'):
+                return img_tag['src']
         
         return ""
     
