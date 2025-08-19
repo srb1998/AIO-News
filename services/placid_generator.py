@@ -17,7 +17,7 @@ class PlacidTemplateGenerator:
         self.base_url = "https://placid.app/u/"
         
         self.template_ids = {
-            "instagram": os.getenv("PLACID_INSTAGRAM_TEMPLATE_ID"),
+            "instagram": os.getenv("TEMPLATE_ID"),
             "twitter": "your_twitter_template_id", 
             "youtube": "your_youtube_template_id"
         }
