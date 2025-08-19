@@ -140,7 +140,7 @@ class ScriptWriterAgent:
             - Use SPECIFIC facts and numbers from the investigation data above
             - Include recent developments and expert opinions where relevant
             - NO generic statements - everything must be specific and factual
-            - Reference current global context (Trump presidency, current year 2025)
+            - current global context (Trump presidency, current year 2025)
             - Show clear opinion and analysis, not just reporting
             - Use conversational, engaging tone like Palki Sharma
             - Don't use Palki Sharma's name on any script
@@ -152,8 +152,8 @@ class ScriptWriterAgent:
             - Add natural pauses and emphasis points
             - Include specific data points and expert quotes
             - End with strong opinion/takeaway
-            - If news is not very very important make 2 min max script. And if news is important then make upto 4 mins of script
-            
+            - Remember: If news is not very important make max of 2 mins script. And if news is important and impactful then make upto 4 mins of script
+
             FOR INSTAGRAM:
             - Create engaging story content that works as standalone post
             - Use specific facts to make it informative
@@ -168,7 +168,7 @@ class ScriptWriterAgent:
 
             {{
               "instagram": {{
-                "story_content": "Write a detailed, informative caption using specific facts from the investigation. Begin with a strong, attention-grabbing first line that makes people want to read more. Include expert opinions or official statements. Present a clear Indian perspective. End with a definitive conclusion, not questions.",
+                "story_content": "Write a detailed, informative caption using specific facts from the investigation. Begin with a strong, attention-grabbing first line that makes people want to read more. Include expert opinions or official statements. End with a definitive conclusion, not questions.",
                 "estimated_engagement": "high/medium/low",
                 "hashtags": ["#FactCheck", "#IndianPerspective", "#GlobalNews", "relevant topic hashtags"],
                 "content_style": "informative_conversational"
@@ -205,7 +205,7 @@ class ScriptWriterAgent:
                 ],
                 "anchor_personality": "confident_opinionated_palki_style",
                 "teleprompter_ready": true,
-                "pacing_notes": "Include natural pauses, emphasis points, and conversational flow"
+                "pacing_notes": "Include natural pauses, fast, emphasis points, and conversational flow"
               }}
             }}
 
@@ -215,7 +215,7 @@ class ScriptWriterAgent:
             - Reference actual facts, numbers, expert opinions from the data provided
             - End with conclusions, not questions
             - Make it sound authoritative but approachable like Palki Sharma
-
+            - Remember to keep the language simple and clear, avoiding jargon
             """
 
     def _parse_json_response(self, content: str, story: Dict[str, Any]) -> Dict[str, Any]:
@@ -226,6 +226,7 @@ class ScriptWriterAgent:
         scripts = {
             "story_id": story.get("story_id", 0),
             "original_headline": story.get("original_headline", ""),
+            "subheadline": story.get("subheadline", ""),
             "importance_score": story.get("importance_score", 0),
             "instagram": {},
             "twitter": {},

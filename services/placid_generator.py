@@ -6,6 +6,7 @@ import cloudinary
 import cloudinary.uploader
 from urllib.parse import quote_plus
 from services.image_generator import ImageGenerator
+import random
 
 
 class PlacidTemplateGenerator:
@@ -15,9 +16,14 @@ class PlacidTemplateGenerator:
     """
     def __init__(self):
         self.base_url = "https://placid.app/u/"
+
+        template_ids_str = os.getenv("PLACID_INSTAGRAM_TEMPLATE_IDS", "")
+        instagram_templates = []
+        if template_ids_str:
+            instagram_templates = [item.strip() for item in template_ids_str.split(',')]
         
         self.template_ids = {
-            "instagram": os.getenv("TEMPLATE_ID"),
+            "instagram": instagram_templates,
             "twitter": "your_twitter_template_id", 
             "youtube": "your_youtube_template_id"
         }
@@ -25,7 +31,8 @@ class PlacidTemplateGenerator:
         self.template_layers = {
             "instagram": {
                 "headline": "headline",
-                "background_image": "background_image"
+                "background_image": "background_image",
+                "subheadline": "subheadline"
             }
         }
 
@@ -42,9 +49,12 @@ class PlacidTemplateGenerator:
         Generates an image from a Placid template and uploads it to Cloudinary.
         """
         try:
-            template_id = self.template_ids.get(platform)
-            if not template_id:
-                raise ValueError(f"No Placid template configured for {platform}")
+            template_id_list = self.template_ids.get(platform)
+            if not template_id_list:
+                raise ValueError(f"No Placid templates configured for {platform} in .env")
+
+            template_id = random.choice(template_id_list)
+            print(f"🎨 Randomly selected Placid template: {template_id}")
 
             # Step 1: Construct the final Placid image URL directly.
             placid_url = self._create_image_url(
@@ -96,10 +106,13 @@ class PlacidTemplateGenerator:
             f"{image_layer_name}[image]={encoded_background_url}"
         )
 
+        subheadline_layer_name = layers.get("subheadline")
+        subheadline_text = additional_data.get("subheadline")
+
         # Handle subheadline if provided
-        if additional_data and additional_data.get("subheadline"):
-            encoded_subheadline = quote_plus(additional_data["subheadline"])
-            final_url += f"&subheadline[text]={encoded_subheadline}"
+        if subheadline_layer_name and subheadline_text:
+            encoded_subheadline = quote_plus(subheadline_text)
+            final_url += f"&{subheadline_layer_name}[text]={encoded_subheadline}"
 
         print(f"✅ Constructed Placid URL: {final_url}")
         return final_url

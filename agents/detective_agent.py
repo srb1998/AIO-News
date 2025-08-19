@@ -104,32 +104,32 @@ class DetectiveAgent:
         # Original extraction +  Brave AI grounding
         source_url = story.get("url") or story.get("source_url")
         
-        # Run all data gathering concurrently
-        tasks = []
-        
+        # Run all data gathering tasks concurrently
+        other_tasks = []
         if source_url:
-            tasks.append(self._scrape_article_content(source_url))
+            other_tasks.append(self._scrape_article_content(source_url))
         else:
-            tasks.append(self._empty_scrape_result())
-            
-        #  Multiple Brave searches for comprehensive coverage
-        tasks.extend([
-            self._brave_ai_grounding(story["headline"], "facts"),
-            self._brave_ai_grounding(story["headline"], "recent"),
-            self._brave_ai_grounding(story["headline"], "background"),
-            self._get_duckduckgo_context(story["headline"])
-        ])
+            other_tasks.append(self._empty_scrape_result())
+        other_tasks.append(self._get_duckduckgo_context(story["headline"]))
         
-        results = await asyncio.gather(*tasks)
+        other_results = await asyncio.gather(*other_tasks)
+        
+        # Run Brave AI grounding tasks SEQUENTIALLY with delays
+        print("🕵️ Starting sequential Brave AI grounding to respect rate limits...")
+        
+        brave_facts = await self._brave_ai_grounding(story["headline"], "facts")
+        await asyncio.sleep(1.1) # Wait 1.1 seconds to be safe (for 1 req/sec limit)
+        
+        brave_recent = await self._brave_ai_grounding(story["headline"], "recent")
+        await asyncio.sleep(1.1) # Wait again
+        
+        brave_background = await self._brave_ai_grounding(story["headline"], "background")
         
         # Process results
-        scraped_data = results[0]
-        brave_facts = results[1]
-        brave_recent = results[2] 
-        brave_background = results[3]
-        ddg_context = results[4]
+        scraped_data = other_results[0]
+        ddg_context = other_results[1]
         
-        # Merge all data
+        # Merge all data (this logic remains the same)
         content_data.update(scraped_data)
         content_data["related_info"] = ddg_context
         
@@ -189,8 +189,6 @@ class DetectiveAgent:
             processed_data["success"] = True
             
             print(f"✅ Brave AI ({search_type}): Found {len(processed_data.get('facts') or processed_data.get('developments') or processed_data.get('context', []))} items")
-            
-            await asyncio.sleep(1.5)
         
             return processed_data
             
@@ -396,6 +394,7 @@ class DetectiveAgent:
                     enhanced_report = {
                         **report,
                         "original_headline": original_data["headline"],
+                        "subheadline": original_data.get("subheadline", ""),
                         "original_summary": original_data["original_summary"],
                         "source": original_data["source"],
                         "source_url": original_data["source_url"],

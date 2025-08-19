@@ -158,7 +158,6 @@ class InstagramService:
                 "children": ",".join(media_containers)
             }
             
-            # Add caption to carousel container - THIS IS THE FIX!
             if caption:
                 cleaned_caption = self._clean_instagram_caption(caption)
                 data["caption"] = cleaned_caption

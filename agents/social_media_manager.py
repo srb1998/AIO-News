@@ -102,7 +102,7 @@ class SocialMediaManagerAgent:
         story_id = str(script_package.get("story_id", f"story_{int(datetime.now().timestamp())}"))
         headline = script_package.get("original_headline", "News Update")
         summary = script_package.get("research_summary", "")
-
+        subheadline = script_package.get("subheadline", "")
         # Extract platform-specific content and hashtags
         twitter_data = script_package.get("twitter", {})
         instagram_data = script_package.get("instagram", {})
@@ -148,7 +148,7 @@ class SocialMediaManagerAgent:
                 platform=platform, 
                 workflow_id=workflow_id, 
                 content=headline,
-                sub_content=summary, 
+                sub_content=subheadline,
                 images=[], 
                 videos=[],
                 message_ids=message_ids, 

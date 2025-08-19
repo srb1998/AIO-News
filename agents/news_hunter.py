@@ -190,7 +190,7 @@ class NewsHunterAgent:
         **Good Examples:**
         - "Trump Announces 50% Tariff on Indian Goods"
         - "Pakistan's Response to Operation Sindoor: Full Details Emerge" 
-        - "Air India Crisis: 80+ Flights Cancelled as Pilots Strike Continues"
+        - "80+ Air India Flights Cancelled as Pilots Strike Continues"
 
         **Your Task:**
         Create distinct, varied headlines for these {len(articles)} stories.
@@ -203,7 +203,8 @@ class NewsHunterAgent:
             "top_headlines": [
                 {{
                     "headline": "Clear, engaging headline",
-                    "summary": "2-sentence explanation",
+                    "subheadline": "Short, punchy text for an image",
+                    "summary": "1-2 sentence summary",
                     "priority": 8,
                     "category": "World News",
                     "original_title": "Original title",
@@ -213,7 +214,9 @@ class NewsHunterAgent:
             ]
         }}
         
-        Rules: Skip non-news content. Each headline must be unique in style and tone.
+        Rules: 
+        - Skip non-news content. Each headline must be unique in style and tone.
+        - Give very good headlines and should be easy english to understand.
         """
         
         print("STAGE 2: CREATIVE DESK - Generating varied headlines...")
