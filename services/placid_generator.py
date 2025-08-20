@@ -43,7 +43,8 @@ class PlacidTemplateGenerator:
         background_image_url: str,
         story_id: str,
         workflow_id: str,
-        additional_data: Dict = None
+        additional_data: Dict = None,
+        subheadline: str = None
     ) -> Optional[str]:
         """
         Generates an image from a Placid template and uploads it to Cloudinary.
@@ -56,9 +57,14 @@ class PlacidTemplateGenerator:
             template_id = random.choice(template_id_list)
             print(f"🎨 Randomly selected Placid template: {template_id}")
 
+            # Debug: Print what we're working with
+            print(f"📝 Debug - Headline: {headline}")
+            print(f"📝 Debug - Subheadline parameter: {subheadline}")
+            print(f"📝 Debug - Additional data: {additional_data}")
+
             # Step 1: Construct the final Placid image URL directly.
             placid_url = self._create_image_url(
-                template_id, platform, headline, background_image_url, additional_data or {}
+                template_id, platform, headline, background_image_url, additional_data or {}, subheadline
             )
             
             if not placid_url:
@@ -82,7 +88,8 @@ class PlacidTemplateGenerator:
         platform: str,
         headline: str, 
         background_image_url: str,
-        additional_data: Dict
+        additional_data: Dict,
+        subheadline: str = None 
     ) -> Optional[str]:
         """
         Constructs the Placid URL with dynamic content in the query parameters.
@@ -107,12 +114,18 @@ class PlacidTemplateGenerator:
         )
 
         subheadline_layer_name = layers.get("subheadline")
-        subheadline_text = additional_data.get("subheadline")
+        subheadline_text = subheadline or additional_data.get("subheadline")
+
+        print(f"📝 Debug - Subheadline layer name: {subheadline_layer_name}")
+        print(f"📝 Debug - Final subheadline text: {subheadline_text}")
 
         # Handle subheadline if provided
         if subheadline_layer_name and subheadline_text:
-            encoded_subheadline = quote_plus(subheadline_text)
+            encoded_subheadline = quote_plus(str(subheadline_text))
             final_url += f"&{subheadline_layer_name}[text]={encoded_subheadline}"
+            print(f"📝 Debug - Added subheadline to URL: {subheadline_layer_name}[text]={encoded_subheadline}")
+        else:
+            print(f"⚠️ Debug - Subheadline not added. Layer name: {subheadline_layer_name}, Text: {subheadline_text}")
 
         print(f"✅ Constructed Placid URL: {final_url}")
         return final_url
