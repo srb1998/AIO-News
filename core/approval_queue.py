@@ -31,12 +31,38 @@ class ApprovalQueue:
             "message_ids": message_ids,
             "created_at": created_at.isoformat(),
             "timeout_at": (created_at + timedelta(minutes=self.timeout_minutes)).isoformat(),
-            "status": "PENDING"
+            "status": "PENDING",
+            "headline_applied": False
         }
         file_path = os.path.join(self.storage_path, f"{story_id}_{platform}.json")
         with FileLock(f"{file_path}.lock"):
             with open(file_path, 'w') as f:
                 json.dump(request, f, indent=2)
+    
+    def set_processed_first_image(self, story_id: str, platform: str, media_url: str) -> Optional[Dict]:
+        """
+        Atomically prepends the first processed image and marks the headline as applied.
+        This prevents race conditions and preserves other images for carousels.
+        """
+        file_path = os.path.join(self.storage_path, f"{story_id}_{platform}.json")
+        if not os.path.exists(file_path): return None
+        with FileLock(f"{file_path}.lock"):
+            try:
+                with open(file_path, 'r+') as f:
+                    request = json.load(f)
+                    images = request.get("images", [])
+                    images.insert(0, media_url)
+                    request["images"] = images
+                    
+                    request["headline_applied"] = True
+                    request["updated_at"] = datetime.now().isoformat()
+                    f.seek(0)
+                    json.dump(request, f, indent=2)
+                    f.truncate()
+                return request
+            except Exception as e:
+                print(f"❌ Failed to set first image for {story_id}_{platform}: {e}")
+                return None
 
     def update_status(self, story_id: str, platform: str, status: str) -> Optional[Dict]:
         """Update the status of an approval request"""

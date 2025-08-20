@@ -12,6 +12,7 @@ from core.approval_queue import ApprovalQueue
 from config.settings import settings
 from services.image_generator import ImageGenerator
 from services.placid_generator import PlacidImageGenerator
+from filelock import FileLock 
 
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -54,38 +55,52 @@ class SocialMediaManagerAgent:
     
     async def handle_webhook_upload(self, story_id: str, platform: str, media_url: str, resource_type: str, workflow_id: str):
         """
-        Processes a file uploaded via the web widget and notified via webhook.
-        Applies headline to the first image and updates the approval queue.
+        Processes an uploaded file with robust, race-condition-safe logic
+        that supports multi-image carousels.
         """
-        print(f"Handling webhook upload for {platform}/{story_id}: {media_url} in workflow {workflow_id}")
-        request = self.approval_queue.get_request(story_id, platform)
-        if not request:
-            print(f"⚠️ Webhook Error: No pending request found for {platform}/{story_id}")
-            return
-    
-        final_media_url = media_url
-        is_first_image = resource_type == "image" and not request.get("images")
-    
-        if is_first_image:
-            print(f"This is the first image. Applying headline overlay...")
-            # The image is already in Cloudinary, so we pass its URL to the generator
-            processed_url = await self.image_gen.apply_headline_to_image(
-                image_path_or_url=media_url,
-                story_id=story_id,
-                platform=platform,
-                headline=request["content"],
-                subheadline=request.get("sub_content", ""),
-                workflow_id=workflow_id
-            )
-            if processed_url:
-                final_media_url = processed_url
+        print(f"Handling webhook for {platform}/{story_id}: {media_url}")
+        
+        file_path = os.path.join(self.approval_queue.storage_path, f"{story_id}_{platform}.json")
+        lock_path = f"{file_path}.lock"
+
+        # The FileLock is essential to prevent race conditions
+        with FileLock(lock_path):
+            request = self.approval_queue.get_request(story_id, platform)
+            if not request:
+                print(f"⚠️ Webhook Error: No pending request found for {platform}/{story_id}")
+                return
+
+            existing_media = request.get("images", []) + request.get("videos", [])
+            if media_url in existing_media:
+                print(f"Duplicate media URL detected: {media_url}. Skipping.")
+                return
+            
+            is_first_image_claim = resource_type == "image" and not request.get("headline_applied", False)
+
+            if is_first_image_claim:
+                print("This is the first image to be processed. Applying headline overlay...")
+                
+                processed_url = await self.image_gen.apply_headline_to_image(
+                    image_path_or_url=media_url,
+                    story_id=story_id,
+                    platform=platform,
+                    headline=request["content"],
+                    subheadline=request.get("sub_content", ""),
+                    workflow_id=workflow_id
+                )
+
+                final_url_to_add = processed_url or media_url
+            
+                self.approval_queue.set_processed_first_image(story_id, platform, final_url_to_add)
+                print(f"✅ First image processed and PREPENDED for {platform}/{story_id}.")
+
             else:
-                print("⚠️ Headline overlay failed. Using original image.")
-    
-        # Update the approval queue with the final URL
-        db_media_type = "videos" if resource_type == "video" else "images"
-        self.approval_queue.update_media(story_id, platform, db_media_type, final_media_url)
-        print(f"✅ Media for {platform}/{story_id} updated in queue.")
+                print(f"This is a subsequent media item. Appending to queue...")
+                db_media_type = "videos" if resource_type == "video" else "images"
+                
+                # The standard update_media function APPENDS the media.
+                self.approval_queue.update_media(story_id, platform, db_media_type, media_url)
+                print(f"✅ Media for {platform}/{story_id} APPENDED to queue.")
 
     async def process_scripts_for_posting(self, script_packages: List[Dict], workflow_id: str, posting_mode: str = "hitl") -> Dict:
         results = {"success": True, "posts_processed": 0, "posts_pending": 0, "telegram_notifications_sent": 0, "errors": []}

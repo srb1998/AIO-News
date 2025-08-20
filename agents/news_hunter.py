@@ -203,7 +203,7 @@ class NewsHunterAgent:
             "top_headlines": [
                 {{
                     "headline": "Clear, engaging headline",
-                    "subheadline": "Short, punchy text for an image",
+                    "subheadline": "Short, punchy fun fact about the article",
                     "summary": "1-2 sentence summary",
                     "priority": 8,
                     "category": "World News",
