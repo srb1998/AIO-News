@@ -22,226 +22,272 @@ class DetectiveAgent:
         
         # Initialize Brave Search for AI grounding
         self.brave_api_key = settings.BRAVE_API_KEY
-        self.brave_ai_url = "https://api.search.brave.com/res/v1/chat/completions"
+        self.brave_base_url = "https://api.search.brave.com/res/v1/web/search"
     
     @track_tokens("Detective")
     async def investigate_top_stories(self, top_headlines: List[Dict[str, Any]], max_stories: int = 5) -> Dict[str, Any]:
         """
-        Main investigation method. Processes stories SEQUENTIALLY using the Brave AI Grounding API
-        to provide rich context while respecting API rate limits.
+         Main investigation method with Brave AI grounding
         """
-        print(f"🕵️ Detective Agent: Starting investigation of {len(top_headlines)} stories...")
-
-        # Prioritize stories to investigate
-        stories_to_investigate = self._prioritize_stories(top_headlines, max_stories)
-
+        print(f"🕵️ Detective Agent: Starting  investigation of {len(top_headlines)} stories...")
+        
+        # Filter and sort by priority
+        priority_stories = [h for h in top_headlines if h.get("priority", 0) >= 8]
+        priority_stories.sort(key=lambda x: x.get("priority", 0), reverse=True)
+        stories_to_investigate = priority_stories[:max_stories]
+        
+        print(f"🎯 Investigating top {len(stories_to_investigate)} priority stories...")
+        
         if not stories_to_investigate:
             return {
                 "success": True,
-                "message": "No high-priority stories found for investigation.",
+                "message": "No high-priority stories found for investigation",
                 "investigation_reports": []
             }
 
-        print(f"🎯 Investigating top {len(stories_to_investigate)} priority stories one by one...")
-
-        # Process each story sequentially to prevent rate-limiting ---
-        enhanced_research_data = []
-        for story in stories_to_investigate:
-            print(f"\n--- Investigating Story: {story['headline'][:60]}... ---")
-            # This function now contains the single, powerful AI Grounding API call
-            enhanced_data = await self._enhanced_extract_content(story)
-            enhanced_research_data.append(enhanced_data)
-
-            # A small delay between processing each story is a crucial safety measure
-            await asyncio.sleep(1.0) 
-
-        # After all research is complete, analyze the collected data in a single batch
-        print("\n🧠 All research complete. Sending collected data for deep analysis...")
+        #  Step 1: Extract content + Brave AI grounding (FREE + PAID)
+        tasks = [self._enhanced_extract_content(story) for story in stories_to_investigate]
+        enhanced_research_data = await asyncio.gather(*tasks)
+        
+        #  Step 2: Deep analysis with comprehensive data
         analysis_result = await self._enhanced_analyze_with_llm(enhanced_research_data)
-
+        
         if "error" in analysis_result:
             return {"success": False, "error": analysis_result["error"]}
-
-        # Format the final reports
+        
+        # Step 3: Format enhanced research reports
         investigation_reports = self._format_enhanced_reports(
             analysis_result["content"], 
             enhanced_research_data
         )
-
+        
         return {
             "success": True,
             "stories_investigated": len(stories_to_investigate),
             "investigation_reports": investigation_reports,
-            "token_usage": analysis_result.get("token_usage", {}),
+            "token_usage": analysis_result["token_usage"],
             "ready_for_script_writer": True,
-            "enhanced_data_sources": "Brave AI Grounding API"
+            "enhanced_data_sources": "brave_ai_grounding_enabled"
         }
     
     async def _enhanced_extract_content(self, story: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Uses the Brave AI Grounding API for research.
+        Extract content with Brave AI grounding for comprehensive data
         """
         cache_key = f"enhanced_detective_{hash(story.get('headline', ''))}"
-        if cached_content := cache_manager.get(cache_key, expire_hours=12):
+        cached_content = cache_manager.get(cache_key, expire_hours=12)
+        
+        if cached_content:
             print("📋 Using cached enhanced content...")
             return cached_content
         
-        content_data = { "headline": story.get("headline", ""), "subheadline": story.get("subheadline", ""), **self._get_empty_content_dict() }
+        content_data = {
+            "headline": story.get("headline", ""),
+            "original_summary": story.get("summary", ""),
+            "category": story.get("category", "general"),
+            "priority": story.get("priority", 0),
+            "source": story.get("source", "Unknown"),
+            "source_url": story.get("url", ""),
+            "extracted_content": "",
+            "key_quotes": [],
+            "statistics": [],
+            "related_info": "",
+            "verified_facts": [],
+            "recent_developments": [],
+            "expert_opinions": [],
+            "background_context": "",
+            "similar_incidents": [],
+            "official_statements": [],
+            "data_sources_count": 0
+        }
         
-        # Run non-rate-limited tasks concurrently
+        # Original extraction +  Brave AI grounding
         source_url = story.get("url") or story.get("source_url")
-        other_tasks = [
-            self._scrape_article_content(source_url) if source_url else self._empty_scrape_result(),
-            self._get_duckduckgo_context(story["headline"])
-        ]
+        
+        # Run all data gathering tasks concurrently
+        other_tasks = []
+        if source_url:
+            other_tasks.append(self._scrape_article_content(source_url))
+        else:
+            other_tasks.append(self._empty_scrape_result())
+        other_tasks.append(self._get_duckduckgo_context(story["headline"]))
+        
         other_results = await asyncio.gather(*other_tasks)
-        scraped_data, ddg_context = other_results[0], other_results[1]
         
-        # Make a single, powerful call to the Brave AI Grounding API
-        ai_grounding_data = await self._brave_ai_grounding(story["headline"])
+        # Run Brave AI grounding tasks SEQUENTIALLY with delays
+        print("🕵️ Starting sequential Brave AI grounding to respect rate limits...")
         
-        # Merge all data sources
+        brave_facts = await self._brave_ai_grounding(story["headline"], "facts")
+        await asyncio.sleep(1.1) # Wait 1.1 seconds to be safe (for 1 req/sec limit)
+        
+        brave_recent = await self._brave_ai_grounding(story["headline"], "recent")
+        await asyncio.sleep(1.1) # Wait again
+        
+        brave_background = await self._brave_ai_grounding(story["headline"], "background")
+        
+        # Process results
+        scraped_data = other_results[0]
+        ddg_context = other_results[1]
+        
+        # Merge all data (this logic remains the same)
         content_data.update(scraped_data)
         content_data["related_info"] = ddg_context
-        if ai_grounding_data.get("success"):
-            content_data.update(ai_grounding_data["data"])
-            content_data["data_sources_count"] = 1
         
+        #  Process Brave AI data
+        content_data["verified_facts"] = brave_facts.get("facts", [])
+        content_data["recent_developments"] = brave_recent.get("developments", [])
+        content_data["background_context"] = brave_background.get("context", "")
+        content_data["expert_opinions"] = brave_facts.get("expert_views", [])
+        content_data["official_statements"] = brave_facts.get("official_statements", [])
+
+        brave_results_list = [brave_facts, brave_recent, brave_background]
+        content_data["data_sources_count"] = len([res for res in brave_results_list if res.get("success")])
+        
+        # Cache the enhanced result
         cache_manager.set(cache_key, content_data, expire_hours=12)
-        print(f"✅ Enhanced extraction complete. AI Grounding Success: {ai_grounding_data.get('success', False)}")
+        
+        print(f"✅ Enhanced extraction: {content_data['data_sources_count']}/3 Brave sources + original")
         return content_data
 
-    async def _brave_ai_grounding(self, headline: str) -> Dict[str, Any]:
+    async def _brave_ai_grounding(self, headline: str, search_type: str) -> Dict[str, Any]:
         """
-        Use Brave Search API for AI grounding with specific search strategies
+        NEW: Use Brave Search API for AI grounding with specific search strategies
         """
         try:
-            # Create comprehensive question for AI instead of search query
-            ai_prompt = f"""
-            Please provide detailed information about: "{headline}"
-
-            I need:
-            1. Key facts and statistics
-            2. Recent developments and updates  
-            3. Background context and history
-            4. Expert opinions or analysis
-            5. Official statements or positions
-            6. Important quotes if available
-
-            Format your response with clear sections for each type of information.
-            """
+            # Create targeted search queries based on type
+            if search_type == "facts":
+                query = f'"{headline}" facts statistics data numbers'
+            elif search_type == "recent":
+                query = f'"{headline}" latest news today updates developments'
+            elif search_type == "background":
+                query = f'"{headline}" background context history explanation'
+            else:
+                query = headline
             
-            print(f"🤖 AI Grounding request: {headline[:50]}...")
-        
-            payload = {
-                "messages": [
-                    {
-                        "role": "user", 
-                        "content": ai_prompt
-                    }
-                ],
-                "stream": False
+            print(f"🔍 Brave AI grounding ({search_type}): {query[:50]}...")
+            
+            params = {
+                'q': query,
+                'count': 10,
+                'search_lang': 'en',
+                'safesearch': 'off',
+                'freshness': 'pd' if search_type == "recent" else 'pw',  # Past day for recent, past week for others
+                'text_decorations': False
             }
             
             headers = {
-                "x-subscription-token": self.brave_api_key,
-                "Content-Type": "application/json",
-                "Accept": "application/json"
+                'X-Subscription-Token': self.brave_api_key,
+                'Accept': 'application/json'
             }
             
-            response = await self.session.post(
-                self.brave_ai_url,
-                headers=headers,
-                json=payload,
-                timeout=20 
-            )
-            
+            response = await self.session.get(self.brave_base_url, params=params, headers=headers)
             response.raise_for_status()
+            
             data = response.json()
-            print(f"🤖 AI Grounding response: {data}")
-
-            ai_response = data["choices"][0]["message"]["content"]
+            results = data.get('results', [])
+            print("brave_results:", results)
+            # Process results based on search type
+            processed_data = await self._process_brave_results(results, search_type)
+            processed_data["success"] = True
             
-            print(f"✅ AI Grounding success: {len(ai_response)} chars")
-            
-            parsed_data = self._parse_ai_response(ai_response)
-            
-            return {
-                "success": True,
-                "data": parsed_data,
-                "raw_response": ai_response[:500] + "..." if len(ai_response) > 500 else ai_response
-            }
+            print(f"✅ Brave AI ({search_type}): Found {len(processed_data.get('facts') or processed_data.get('developments') or processed_data.get('context', []))} items")
+        
+            return processed_data
             
         except Exception as e:
-            print(f"❌ Brave AI Grounding failed: {e}")
+            print(f"❌ Brave AI grounding ({search_type}) failed: {e}")
             return {"success": False, "error": str(e)}
 
-    def _parse_ai_response(self, ai_response: str) -> Dict[str, Any]:
+    async def _process_brave_results(self, results: List[Dict], search_type: str) -> Dict[str, Any]:
         """
-        Parses the structured text response from the Brave AI.
+        NEW: Process Brave search results based on search type
         """
-        parsed = self._get_empty_content_dict()
+        processed = {
+            "facts": [],
+            "developments": [],
+            "context": "",
+            "expert_views": [],
+            "official_statements": []
+        }
         
-        # Use regex to find sections like "1. Key Facts", "Recent Developments:", etc.
-        for key, pattern in self._get_parsing_patterns().items():
-            match = re.search(pattern, ai_response, re.IGNORECASE | re.DOTALL)
-            if match:
-                content = match.group(1).strip()
-                # Split bullet points into a list
-                items = [item.strip() for item in re.split(r'\n\s*[-•*]\s*', content) if len(item.strip()) > 10]
-                if key == "background_context":
-                    parsed[key] = content[:800] # Keep as a single text block
-                else:
-                    parsed[key] = items[:5] # Limit to 5 items per section
-
-        # Fallback if no sections were parsed
-        if not any(parsed.values()):
-            print("⚠️ AI response was unstructured, using fallback sentence parsing.")
-            sentences = [s.strip() for s in re.split(r'[.!?]+', ai_response) if len(s.strip()) > 30]
-            parsed["verified_facts"] = sentences[:4]
-            parsed["recent_developments"] = sentences[4:7]
-        
-        print(f"📊 Parsed AI response: {len(parsed['verified_facts'])} facts, {len(parsed['recent_developments'])} developments.")
-        return parsed
-    
-    def _prioritize_stories(self, headlines: List[Dict[str, Any]], max_stories: int) -> List[Dict[str, Any]]:
-        """Filters and sorts stories by priority."""
-        priority_stories = [h for h in headlines if h.get("priority", 0) >= 7]
-        priority_stories.sort(key=lambda x: x.get("priority", 0), reverse=True)
-        return priority_stories[:max_stories]
-
-    def _get_empty_content_dict(self) -> Dict:
-        """Returns a consistent empty dictionary structure with ALL needed fields."""
-        return {
-            # Story metadata
-            "original_summary": "",
-            "category": "general", 
-            "priority": 0,
-            "source": "Unknown",
-            "source_url": "",
-            "extracted_content": "",
-            "related_info": "",
-            "data_sources_count": 0,
+        for result in results[:8]:  # Process top 8 results
+            title = result.get('title', '')
+            description = result.get('description', '')
+            url = result.get('url', '')
+            combined_text = f"{title} {description}"
             
-            # AI Grounding data
-            "verified_facts": [],
-            "recent_developments": [], 
-            "expert_opinions": [],
-            "background_context": "",
-            "official_statements": [],
-            "key_quotes": [],
-            "statistics": []
-        }
+            if search_type == "facts":
+                # Extract factual information, statistics, numbers
+                facts = self._extract_facts_from_text(combined_text)
+                processed["facts"].extend(facts)
+                
+                # Identify expert opinions and official statements
+                if any(keyword in combined_text.lower() for keyword in ['expert', 'analyst', 'professor', 'researcher']):
+                    processed["expert_views"].append(f"{title}: {description[:150]}")
+                
+                if any(keyword in combined_text.lower() for keyword in ['official', 'government', 'ministry', 'spokesperson']):
+                    processed["official_statements"].append(f"{title}: {description[:150]}")
+                    
+            elif search_type == "recent":
+                # Extract recent developments and updates
+                developments = self._extract_developments_from_text(combined_text)
+                processed["developments"].extend(developments)
+                
+            elif search_type == "background":
+                # Build comprehensive background context
+                if description and len(description) > 50:
+                    processed["context"] += f" {description}"
 
-    def _get_parsing_patterns(self) -> Dict:
-        """Returns regex patterns for parsing the AI response."""
-        return {
-            "verified_facts": r"(?:Key Facts|Facts & Statistics|Key Facts & Statistics):?\n(.*?)(?:\n\n|\Z|2\.)",
-            "recent_developments": r"(?:Recent Developments):?\n(.*?)(?:\n\n|\Z|3\.)",
-            "background_context": r"(?:Background Context|Background):?\n(.*?)(?:\n\n|\Z|4\.)",
-            "expert_opinions": r"(?:Expert Opinions|Expert Analysis):?\n(.*?)(?:\n\n|\Z|5\.)",
-            "official_statements": r"(?:Official Statements|Official Positions):?\n(.*?)(?:\n\n|\Z|6\.)",
-        }
+        # Fallback if any category is empty
+        if search_type == "facts" and not processed["facts"]:
+            print("⚠️ No specific facts found via regex, using top descriptions as fallback.")
+            for r in results[:3]:
+                processed["facts"].append(r.get('description', ''))
+        
+        if search_type == "recent" and not processed["developments"]:
+            print("⚠️ No specific developments found via regex, using top descriptions as fallback.")
+            for r in results[:3]:
+                processed["developments"].append(r.get('description', ''))
+        
+        # Clean and limit results
+        processed["facts"] = list(set(processed["facts"]))[:8]
+        processed["developments"] = list(set(processed["developments"]))[:6]
+        processed["context"] = processed["context"][:800]
+        processed["expert_views"] = processed["expert_views"][:4]
+        processed["official_statements"] = processed["official_statements"][:3]
+        
+        return processed
+
+    def _extract_facts_from_text(self, text: str) -> List[str]:
+        """Extract factual statements with numbers, percentages, dates, etc."""
+        facts = []
+        
+        # Extract sentences with numbers/percentages
+        number_pattern = r'[^.!?]*\b\d+(?:\.\d+)?(?:%|billion|million|thousand|crore|lakh)?\b[^.!?]*[.!?]'
+        number_sentences = re.findall(number_pattern, text, re.IGNORECASE)
+        facts.extend([s.strip() for s in number_sentences if len(s.strip()) > 20])
+        
+        # Extract sentences with specific fact indicators
+        fact_indicators = ['according to', 'reported that', 'confirmed that', 'announced that', 'revealed that']
+        for indicator in fact_indicators:
+            pattern = f'[^.!?]*{re.escape(indicator)}[^.!?]*[.!?]'
+            fact_sentences = re.findall(pattern, text, re.IGNORECASE)
+            facts.extend([s.strip() for s in fact_sentences if len(s.strip()) > 30])
+        
+        return facts[:6]  # Return top 6 facts
+
+    def _extract_developments_from_text(self, text: str) -> List[str]:
+        """Extract recent developments and updates"""
+        developments = []
+        
+        # Extract sentences with time indicators
+        time_indicators = ['today', 'yesterday', 'this morning', 'earlier', 'just announced', 'breaking', 'latest']
+        for indicator in time_indicators:
+            pattern = f'[^.!?]*{re.escape(indicator)}[^.!?]*[.!?]'
+            dev_sentences = re.findall(pattern, text, re.IGNORECASE)
+            developments.extend([s.strip() for s in dev_sentences if len(s.strip()) > 25])
+        
+        return developments[:5]  # Return top 5 developments
 
     async def _enhanced_analyze_with_llm(self, enhanced_research_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -394,7 +440,7 @@ class DetectiveAgent:
          Create detailed fallback reports with available data
         """
         fallback_reports = []
-        print("Creating enhanced fallback reports...")
+        
         for data in enhanced_data:
             report = {
                 "story_id": len(fallback_reports) + 1,
