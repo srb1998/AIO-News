@@ -15,6 +15,10 @@ class LLMClient:
             # Initialize the client with API key (same as your working test)
             self.genai_client = genai.Client(api_key=settings.GEMINI_API_KEY)
         
+        # Gemini client for Search Grounding
+        if settings.GEMINI_SEARCH_API_KEY:
+            self.gemini_search_client = genai.Client(api_key=settings.GEMINI_SEARCH_API_KEY)
+        
         # Configure OpenAI  
         if settings.OPENAI_API_KEY:
             self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
@@ -29,7 +33,7 @@ class LLMClient:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     max_output_tokens=max_tokens,
-                    temperature=0.80
+                    temperature=0.90
                 )
             )
             
@@ -42,7 +46,7 @@ class LLMClient:
             return {
                 "content": text_content,
                 "token_usage": {
-                    "model": "gemini-2.0-flash",
+                    "model": "gemini-2.5-flash",
                     "tokens": estimated_tokens,
                     "cost": 0.0  # FREE!
                 }
@@ -69,6 +73,49 @@ class LLMClient:
         except Exception as e:
             print(f"❌ OpenAI error: {e}")
             return {"error": str(e)}
+        
+    def generate_with_gemini_search_grounding(self, query: str, max_tokens: int = 4000) -> Dict[str, Any]:
+        """
+        Generate text using Gemini with Search Grounding for real-time information
+        Uses separate API key for search grounding functionality
+        """
+        try:
+            # Use search grounding mode with the dedicated client
+            response = self.gemini_search_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=query,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=max_tokens,
+                    temperature=0.7,
+                    tools=[types.Tool(google_search=types.GoogleSearch())]
+                )
+            )
+            
+            # Extract text from response
+            text_content = response.text if hasattr(response, 'text') else str(response)
+            
+            # Extract grounding metadata if available
+            grounding_metadata = []
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'grounding_metadata'):
+                    grounding_metadata = candidate.grounding_metadata
+            
+            # Estimate token usage
+            estimated_tokens = len(query.split()) + len(text_content.split())
+            
+            return {
+                "content": text_content,
+                "grounding_metadata": grounding_metadata,
+                "token_usage": {
+                    "model": "gemini-2.5-flash-exp-search",
+                    "tokens": estimated_tokens,
+                    "search_grounded": True
+                }
+            }
+        except Exception as e:
+            print(f"❌ Gemini Search Grounding error: {e}")
+            return {"error": str(e)}
     
     async def smart_generate(self, prompt: str, max_tokens: int = 8000, priority: str = "normal") -> Dict[str, Any]:
         """Smart model selection, now fully asynchronous."""
@@ -83,6 +130,27 @@ class LLMClient:
         
         print("🔄 Gemini failed, trying OpenAI as fallback...")
         return await self.generate_with_openai(prompt, max_tokens)
+    
+    async def smart_generate_with_search(self, query: str, max_tokens: int = 2000) -> Dict[str, Any]:
+        """
+        Smart generation with search grounding, async wrapper
+        First tries Gemini Search Grounding, falls back to regular generation
+        """
+        try:
+            # Run Gemini Search Grounding in thread
+            result = await asyncio.to_thread(self.generate_with_gemini_search_grounding, query, max_tokens)
+            
+            if "error" not in result:
+                print("✅ Gemini Search Grounding successful")
+                return result
+            
+            print("🔄 Search grounding failed, trying regular Gemini...")
+            # Fallback to regular generation
+            return await self.smart_generate(query, max_tokens, "normal")
+            
+        except Exception as e:
+            print(f"❌ Smart generation with search failed: {e}")
+            return {"error": str(e)}
     
     async def get_embedding(self, text: str) -> Optional[List[float]]:
         """

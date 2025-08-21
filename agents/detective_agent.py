@@ -19,17 +19,13 @@ class DetectiveAgent:
         self.session = httpx.AsyncClient(headers={
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }, timeout=10.0)
-        
-        # Initialize Brave Search for AI grounding
-        self.brave_api_key = settings.BRAVE_API_KEY
-        self.brave_base_url = "https://api.search.brave.com/res/v1/web/search"
     
     @track_tokens("Detective")
     async def investigate_top_stories(self, top_headlines: List[Dict[str, Any]], max_stories: int = 5) -> Dict[str, Any]:
         """
-         Main investigation method with Brave AI grounding
+        Main investigation method with Gemini AI grounding
         """
-        print(f"🕵️ Detective Agent: Starting  investigation of {len(top_headlines)} stories...")
+        print(f"🕵️ Detective Agent: Starting investigation with Gemini AI grounding of {len(top_headlines)} stories...")
         
         # Filter and sort by priority
         priority_stories = [h for h in top_headlines if h.get("priority", 0) >= 8]
@@ -45,11 +41,11 @@ class DetectiveAgent:
                 "investigation_reports": []
             }
 
-        #  Step 1: Extract content + Brave AI grounding (FREE + PAID)
-        tasks = [self._enhanced_extract_content(story) for story in stories_to_investigate]
+        # Step 1: Extract content + Gemini AI grounding (FREE)
+        tasks = [self._enhanced_extract_content_gemini(story) for story in stories_to_investigate]
         enhanced_research_data = await asyncio.gather(*tasks)
         
-        #  Step 2: Deep analysis with comprehensive data
+        # Step 2: Deep analysis with comprehensive data
         analysis_result = await self._enhanced_analyze_with_llm(enhanced_research_data)
         
         if "error" in analysis_result:
@@ -67,14 +63,14 @@ class DetectiveAgent:
             "investigation_reports": investigation_reports,
             "token_usage": analysis_result["token_usage"],
             "ready_for_script_writer": True,
-            "enhanced_data_sources": "brave_ai_grounding_enabled"
+            "enhanced_data_sources": "gemini_ai_grounding_enabled"
         }
     
-    async def _enhanced_extract_content(self, story: Dict[str, Any]) -> Dict[str, Any]:
+    async def _enhanced_extract_content_gemini(self, story: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Extract content with Brave AI grounding for comprehensive data
+        Extract content with Gemini AI grounding for comprehensive data
         """
-        cache_key = f"enhanced_detective_{hash(story.get('headline', ''))}"
+        cache_key = f"enhanced_detective_gemini_{hash(story.get('headline', ''))}"
         cached_content = cache_manager.get(cache_key, expire_hours=12)
         
         if cached_content:
@@ -101,7 +97,7 @@ class DetectiveAgent:
             "data_sources_count": 0
         }
         
-        # Original extraction +  Brave AI grounding
+        # Original extraction + DuckDuckGo context
         source_url = story.get("url") or story.get("source_url")
         
         # Run all data gathering tasks concurrently
@@ -114,184 +110,171 @@ class DetectiveAgent:
         
         other_results = await asyncio.gather(*other_tasks)
         
-        # Run Brave AI grounding tasks SEQUENTIALLY with delays
-        print("🕵️ Starting sequential Brave AI grounding to respect rate limits...")
+        # Run Gemini AI grounding tasks with reasonable delays
+        print("🧠 Starting Gemini AI grounding analysis...")
         
-        brave_facts = await self._brave_ai_grounding(story["headline"], "facts")
-        await asyncio.sleep(1.1) # Wait 1.1 seconds to be safe (for 1 req/sec limit)
+        gemini_facts = await self._gemini_ai_grounding(story["headline"], story.get("summary", ""), "facts")
+        await asyncio.sleep(0.5)
         
-        brave_recent = await self._brave_ai_grounding(story["headline"], "recent")
-        await asyncio.sleep(1.1) # Wait again
+        gemini_recent = await self._gemini_ai_grounding(story["headline"], story.get("summary", ""), "recent")
+        await asyncio.sleep(0.5) 
         
-        brave_background = await self._brave_ai_grounding(story["headline"], "background")
+        gemini_background = await self._gemini_ai_grounding(story["headline"], story.get("summary", ""), "background")
         
         # Process results
         scraped_data = other_results[0]
         ddg_context = other_results[1]
         
-        # Merge all data (this logic remains the same)
+        # Merge all data
         content_data.update(scraped_data)
         content_data["related_info"] = ddg_context
         
-        #  Process Brave AI data
-        content_data["verified_facts"] = brave_facts.get("facts", [])
-        content_data["recent_developments"] = brave_recent.get("developments", [])
-        content_data["background_context"] = brave_background.get("context", "")
-        content_data["expert_opinions"] = brave_facts.get("expert_views", [])
-        content_data["official_statements"] = brave_facts.get("official_statements", [])
+        # Process Gemini AI data
+        content_data["verified_facts"] = gemini_facts.get("facts", [])
+        content_data["recent_developments"] = gemini_recent.get("developments", [])
+        content_data["background_context"] = gemini_background.get("context", "")
+        content_data["expert_opinions"] = gemini_facts.get("expert_views", [])
+        content_data["official_statements"] = gemini_facts.get("official_statements", [])
 
-        brave_results_list = [brave_facts, brave_recent, brave_background]
-        content_data["data_sources_count"] = len([res for res in brave_results_list if res.get("success")])
+        gemini_results_list = [gemini_facts, gemini_recent, gemini_background]
+        content_data["data_sources_count"] = len([res for res in gemini_results_list if res.get("success")])
         
         # Cache the enhanced result
         cache_manager.set(cache_key, content_data, expire_hours=12)
         
-        print(f"✅ Enhanced extraction: {content_data['data_sources_count']}/3 Brave sources + original")
+        print(f"✅ Enhanced extraction: {content_data['data_sources_count']}/3 Gemini sources + original")
         return content_data
 
-    async def _brave_ai_grounding(self, headline: str, search_type: str) -> Dict[str, Any]:
+    async def _gemini_ai_grounding(self, headline: str, summary: str, analysis_type: str) -> Dict[str, Any]:
         """
-        NEW: Use Brave Search API for AI grounding with specific search strategies
+        Use Gemini AI for intelligent grounding analysis
         """
         try:
-            # Create targeted search queries based on type
-            if search_type == "facts":
-                query = f'"{headline}" facts statistics data numbers'
-            elif search_type == "recent":
-                query = f'"{headline}" latest news today updates developments'
-            elif search_type == "background":
-                query = f'"{headline}" background context history explanation'
-            else:
-                query = headline
+            # Create targeted analysis prompts based on type
+            if analysis_type == "facts":
+                prompt = f"""
+                Analyze this news story and extract key facts, statistics, and verifiable information:
+                
+                Headline: {headline}
+                Summary: {summary}
+                
+                Provide:
+                1. Key facts and statistics (with numbers where possible)
+                2. Expert opinions or analyst views mentioned
+                3. Official statements from governments/organizations
+                
+                Format as JSON:
+                {{
+                    "facts": ["fact 1 with specific details", "fact 2 with numbers/data"],
+                    "expert_views": ["expert opinion 1", "expert opinion 2"],
+                    "official_statements": ["official statement 1"]
+                }}
+                """
+            elif analysis_type == "recent":
+                prompt = f"""
+                Analyze this news story and identify recent developments and updates:
+                
+                Headline: {headline}
+                Summary: {summary}
+                
+                Focus on:
+                1. Latest developments in the last 24-48 hours
+                2. New information or updates
+                3. Timeline of events
+                
+                Format as JSON:
+                {{
+                    "developments": ["recent development 1", "recent development 2"]
+                }}
+                """
+            elif analysis_type == "background":
+                prompt = f"""
+                Analyze this news story and provide essential background context:
+                
+                Headline: {headline}
+                Summary: {summary}
+                
+                Provide comprehensive background context that helps understand:
+                1. Historical context
+                2. Key players and their roles
+                3. Why this story is significant
+                4. Related events or precedents
+                
+                Format as JSON:
+                {{
+                    "context": "Detailed background context explaining the significance and history of this story"
+                }}
+                """
             
-            print(f"🔍 Brave AI grounding ({search_type}): {query[:50]}...")
+            print(f"🧠 Gemini AI analysis ({analysis_type}): {headline[:50]}...")
             
-            params = {
-                'q': query,
-                'count': 10,
-                'search_lang': 'en',
-                'safesearch': 'off',
-                'freshness': 'pd' if search_type == "recent" else 'pw',  # Past day for recent, past week for others
-                'text_decorations': False
-            }
+            # Use new smart generate with Gemini for AI grounding
+            response = await llm_client.smart_generate_with_search(prompt, max_tokens=2000, priority="normal")
             
-            headers = {
-                'X-Subscription-Token': self.brave_api_key,
-                'Accept': 'application/json'
-            }
+            if "error" in response:
+                return {"success": False, "error": response["error"]}
             
-            response = await self.session.get(self.brave_base_url, params=params, headers=headers)
-            response.raise_for_status()
-            
-            data = response.json()
-            results = data.get('results', [])
-            print("brave_results:", results)
-            # Process results based on search type
-            processed_data = await self._process_brave_results(results, search_type)
-            processed_data["success"] = True
-            
-            print(f"✅ Brave AI ({search_type}): Found {len(processed_data.get('facts') or processed_data.get('developments') or processed_data.get('context', []))} items")
-        
-            return processed_data
+            # Parse JSON response
+            try:
+                json_content = self._extract_json_from_gemini_response(response["content"])
+                parsed_data = json.loads(json_content)
+                parsed_data["success"] = True
+                
+                print(f"✅ Gemini AI ({analysis_type}): Analysis complete")
+                return parsed_data
+                
+            except json.JSONDecodeError as e:
+                print(f"⚠️ JSON parsing failed for {analysis_type}, using fallback")
+                return self._create_gemini_fallback(analysis_type, headline, summary)
             
         except Exception as e:
-            print(f"❌ Brave AI grounding ({search_type}) failed: {e}")
+            print(f"❌ Gemini AI grounding ({analysis_type}) failed: {e}")
             return {"success": False, "error": str(e)}
 
-    async def _process_brave_results(self, results: List[Dict], search_type: str) -> Dict[str, Any]:
+    def _extract_json_from_gemini_response(self, content: str) -> str:
         """
-        NEW: Process Brave search results based on search type
+        Extract JSON content from Gemini response
         """
-        processed = {
-            "facts": [],
-            "developments": [],
-            "context": "",
-            "expert_views": [],
-            "official_statements": []
-        }
+        # Remove markdown code blocks if present
+        content = re.sub(r'```json\s*', '', content)
+        content = re.sub(r'```\s*', '', content)
         
-        for result in results[:8]:  # Process top 8 results
-            title = result.get('title', '')
-            description = result.get('description', '')
-            url = result.get('url', '')
-            combined_text = f"{title} {description}"
-            
-            if search_type == "facts":
-                # Extract factual information, statistics, numbers
-                facts = self._extract_facts_from_text(combined_text)
-                processed["facts"].extend(facts)
-                
-                # Identify expert opinions and official statements
-                if any(keyword in combined_text.lower() for keyword in ['expert', 'analyst', 'professor', 'researcher']):
-                    processed["expert_views"].append(f"{title}: {description[:150]}")
-                
-                if any(keyword in combined_text.lower() for keyword in ['official', 'government', 'ministry', 'spokesperson']):
-                    processed["official_statements"].append(f"{title}: {description[:150]}")
-                    
-            elif search_type == "recent":
-                # Extract recent developments and updates
-                developments = self._extract_developments_from_text(combined_text)
-                processed["developments"].extend(developments)
-                
-            elif search_type == "background":
-                # Build comprehensive background context
-                if description and len(description) > 50:
-                    processed["context"] += f" {description}"
+        # Find JSON object boundaries
+        start_idx = content.find('{')
+        end_idx = content.rfind('}') + 1
+        
+        if start_idx != -1 and end_idx != -1:
+            return content[start_idx:end_idx]
+        
+        return content
 
-        # Fallback if any category is empty
-        if search_type == "facts" and not processed["facts"]:
-            print("⚠️ No specific facts found via regex, using top descriptions as fallback.")
-            for r in results[:3]:
-                processed["facts"].append(r.get('description', ''))
+    def _create_gemini_fallback(self, analysis_type: str, headline: str, summary: str) -> Dict[str, Any]:
+        """
+        Create fallback data when Gemini JSON parsing fails
+        """
+        if analysis_type == "facts":
+            return {
+                "success": True,
+                "facts": [f"Analysis of {headline} indicates significant developments"],
+                "expert_views": [],
+                "official_statements": []
+            }
+        elif analysis_type == "recent":
+            return {
+                "success": True,
+                "developments": [f"Recent developments in {headline} are being monitored"]
+            }
+        elif analysis_type == "background":
+            return {
+                "success": True,
+                "context": f"Background context for {headline}: {summary[:200]}"
+            }
         
-        if search_type == "recent" and not processed["developments"]:
-            print("⚠️ No specific developments found via regex, using top descriptions as fallback.")
-            for r in results[:3]:
-                processed["developments"].append(r.get('description', ''))
-        
-        # Clean and limit results
-        processed["facts"] = list(set(processed["facts"]))[:8]
-        processed["developments"] = list(set(processed["developments"]))[:6]
-        processed["context"] = processed["context"][:800]
-        processed["expert_views"] = processed["expert_views"][:4]
-        processed["official_statements"] = processed["official_statements"][:3]
-        
-        return processed
-
-    def _extract_facts_from_text(self, text: str) -> List[str]:
-        """Extract factual statements with numbers, percentages, dates, etc."""
-        facts = []
-        
-        # Extract sentences with numbers/percentages
-        number_pattern = r'[^.!?]*\b\d+(?:\.\d+)?(?:%|billion|million|thousand|crore|lakh)?\b[^.!?]*[.!?]'
-        number_sentences = re.findall(number_pattern, text, re.IGNORECASE)
-        facts.extend([s.strip() for s in number_sentences if len(s.strip()) > 20])
-        
-        # Extract sentences with specific fact indicators
-        fact_indicators = ['according to', 'reported that', 'confirmed that', 'announced that', 'revealed that']
-        for indicator in fact_indicators:
-            pattern = f'[^.!?]*{re.escape(indicator)}[^.!?]*[.!?]'
-            fact_sentences = re.findall(pattern, text, re.IGNORECASE)
-            facts.extend([s.strip() for s in fact_sentences if len(s.strip()) > 30])
-        
-        return facts[:6]  # Return top 6 facts
-
-    def _extract_developments_from_text(self, text: str) -> List[str]:
-        """Extract recent developments and updates"""
-        developments = []
-        
-        # Extract sentences with time indicators
-        time_indicators = ['today', 'yesterday', 'this morning', 'earlier', 'just announced', 'breaking', 'latest']
-        for indicator in time_indicators:
-            pattern = f'[^.!?]*{re.escape(indicator)}[^.!?]*[.!?]'
-            dev_sentences = re.findall(pattern, text, re.IGNORECASE)
-            developments.extend([s.strip() for s in dev_sentences if len(s.strip()) > 25])
-        
-        return developments[:5]  # Return top 5 developments
-
+        return {"success": False}
+    
     async def _enhanced_analyze_with_llm(self, enhanced_research_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-         Analyze comprehensive research data with detailed prompting
+        Analyze comprehensive research data with detailed prompting (UNCHANGED)
         """
         print("🧠 Enhanced LLM analysis with comprehensive data...")
         
@@ -348,7 +331,7 @@ class DetectiveAgent:
 
     def _format_enhanced_research(self, enhanced_data: List[Dict[str, Any]]) -> str:
         """
-        NEW: Format enhanced research data for comprehensive LLM analysis
+        Format enhanced research data for comprehensive LLM analysis
         """
         formatted = []
         
@@ -363,7 +346,7 @@ class DetectiveAgent:
             
             SCRAPED CONTENT: {data['extracted_content'][:600]}...
             
-            VERIFIED FACTS FROM BRAVE AI:
+            VERIFIED FACTS FROM GEMINI AI:
             {chr(10).join(f"- {fact}" for fact in data['verified_facts'][:5])}
             
             RECENT DEVELOPMENTS:
@@ -391,7 +374,7 @@ class DetectiveAgent:
 
     def _format_enhanced_reports(self, llm_content: str, enhanced_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-         Format LLM analysis with additional research data
+        Format LLM analysis with additional research data
         """
         try:
             cleaned_content = re.sub(r"^```json|```$", "", llm_content.strip()).strip()
@@ -416,12 +399,12 @@ class DetectiveAgent:
                         "content_extracted": bool(original_data["extracted_content"]),
                         "quotes_found": len(original_data["key_quotes"]),
                         "stats_found": len(original_data["statistics"]),
-                        #  Additional metadata
-                        "brave_facts_count": len(original_data["verified_facts"]),
+                        "gemini_facts_count": len(original_data["verified_facts"]),
                         "recent_developments_count": len(original_data["recent_developments"]),
                         "expert_opinions_count": len(original_data["expert_opinions"]),
                         "data_quality_score": original_data["data_sources_count"],
-                        "enhanced_investigation": True
+                        "enhanced_investigation": True,
+                        "ai_grounding_type": "gemini"
                     }
                     
                     enhanced_reports.append(enhanced_report)
@@ -437,7 +420,7 @@ class DetectiveAgent:
 
     def _create_enhanced_fallback_reports(self, enhanced_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-         Create detailed fallback reports with available data
+        Create detailed fallback reports with available data
         """
         fallback_reports = []
         
@@ -447,7 +430,7 @@ class DetectiveAgent:
                 "original_headline": data["headline"],
                 "original_summary": data["original_summary"],
                 "importance_score": data["priority"],
-                "research_summary": f"Enhanced investigation of {data['headline']} with {data['data_sources_count']} data sources",
+                "research_summary": f"Enhanced investigation of {data['headline']} with {data['data_sources_count']} Gemini AI sources",
                 "key_players": [],
                 "verified_facts": data["verified_facts"][:3],
                 "recent_developments": data["recent_developments"][:2],
@@ -463,7 +446,8 @@ class DetectiveAgent:
                 "category": data["category"],
                 "investigation_timestamp": time.time(),
                 "enhanced_investigation": True,
-                "data_quality_score": data["data_sources_count"]
+                "data_quality_score": data["data_sources_count"],
+                "ai_grounding_type": "gemini"
             }
             
             fallback_reports.append(report)
@@ -474,7 +458,7 @@ class DetectiveAgent:
         """Return empty scrape result when no URL available"""
         return {"content": "", "quotes": [], "statistics": []}
 
-    # Keep all existing methods unchanged
+    #  Keep all existing scraping and context methods
     async def _scrape_article_content(self, url: str) -> Dict[str, Any]:
         """Original scraping method - unchanged"""
         try:

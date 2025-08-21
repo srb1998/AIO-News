@@ -16,7 +16,7 @@ class Settings:
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         self.NEWS_API_KEY = os.getenv("NEWS_API_KEY")
         self.BRAVE_API_KEY = os.getenv("BRAVE_API_KEY")
-        self.UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+        self.GEMINI_SEARCH_API_KEY = os.getenv("GEMINI_SEARCH_API_KEY")
         
         # Token Management
         self.DAILY_TOKEN_BUDGET = int(os.getenv("DAILY_TOKEN_BUDGET", 25000))
