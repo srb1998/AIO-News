@@ -140,7 +140,7 @@ class ScriptWriterAgent:
             - Use SPECIFIC facts and numbers from the investigation data above
             - Include recent developments and expert opinions where relevant
             - NO generic statements - everything must be specific and factual
-            - current global context (Trump presidency, current year 2025)
+            - current global context (Trump is current us president, current year 2025)
             - Show clear opinion and analysis, not just reporting
             - Use conversational, engaging tone like Palki Sharma
             - Don't use Palki Sharma's name on any script

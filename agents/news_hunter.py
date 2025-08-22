@@ -101,13 +101,13 @@ class NewsHunterAgent:
             if not embedding:
                 continue
                 
-            if self.semantic_cache.is_story_similar(embedding, threshold=0.35):  # Slightly stricter threshold
+            if self.semantic_cache.is_story_similar(embedding, threshold=0.40):  # Slightly stricter threshold
                 print(f"SEMANTIC HIT: Skipping '{title[:50]}...' - semantically similar story found")
                 continue
             
             # Article passed all filters
             unique_articles.append(article)
-            await asyncio.sleep(0.02)  # Small delay to avoid rate limits
+            await asyncio.sleep(0.02)
         
         return unique_articles
 
@@ -131,14 +131,14 @@ class NewsHunterAgent:
             await asyncio.sleep(0.02)
 
     async def _stage1_triage(self, articles: List[Dict]) -> Dict[str, Any]:
-        """UNCHANGED: Fast ranking of unique articles"""
+        """Fast ranking of unique articles"""
         articles_text = ""
         for i, article in enumerate(articles, 1):
             articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
         You are a fast news curator. Rank these {len(articles)} articles by viral potential and importance.
-        Focus on: shocking news, major developments, unusual events, celebrity drama, political conflicts.
+        Focus on: Very Interesting, Amazing news, shocking news, unusual events, celebrity drama, political conflicts.
         Avoid: routine updates, minor incidents, technical announcements.
         
         Articles:\n{articles_text}
