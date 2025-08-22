@@ -4,7 +4,6 @@ import json
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from async_filelock import AsyncFileLock
 from config.settings import settings
 
 class ApprovalQueue:
