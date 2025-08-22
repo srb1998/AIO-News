@@ -66,6 +66,23 @@ class ApprovalQueue:
         if "platform_content" not in request: request["platform_content"] = ""
         if "hashtags" not in request: request["hashtags"] = []
         return request
+    
+    def update_status(self, story_id: str, platform: str, status: str) -> Optional[Dict]:
+        """Update the status of an approval request (e.g., to 'APPROVED' or 'REJECTED')."""
+        file_path = os.path.join(self.storage_path, f"{story_id}_{platform}.json")
+        if not os.path.exists(file_path): return None
+        try:
+            with open(file_path, 'r+') as f:
+                request = json.load(f)
+                request["status"] = status
+                request["updated_at"] = datetime.now().isoformat()
+                f.seek(0)
+                json.dump(request, f, indent=2)
+                f.truncate()
+            return request
+        except Exception as e:
+            print(f"❌ Failed to update status for {story_id}_{platform}: {e}")
+            return None
 
     def get_next_approved_post(self) -> Optional[Dict]:
        approved_posts = []
