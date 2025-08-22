@@ -12,7 +12,6 @@ from core.approval_queue import ApprovalQueue
 from config.settings import settings
 from services.image_generator import ImageGenerator
 from services.placid_generator import PlacidImageGenerator
-from filelock import FileLock 
 
 cloudinary.config(
     cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
@@ -31,6 +30,8 @@ class SocialMediaManagerAgent:
         self.max_media_per_post = 10
         
         self.social_platform_manager = SocialPlatformManager()
+        self.story_locks = {}
+        self.story_locks_lock = asyncio.Lock()
     
     def _format_post_content(self, platform: str, headline: str, platform_content: str = "", hashtags: List[str] = None) -> str:
         """
@@ -60,11 +61,16 @@ class SocialMediaManagerAgent:
         """
         print(f"Handling webhook for {platform}/{story_id}: {media_url}")
         
-        file_path = os.path.join(self.approval_queue.storage_path, f"{story_id}_{platform}.json")
-        lock_path = f"{file_path}.lock"
+        lock_key = f"{story_id}_{platform}"
 
         # The FileLock is essential to prevent race conditions
-        with FileLock(lock_path):
+        async with self.story_locks_lock:
+            if lock_key not in self.story_locks:
+                self.story_locks[lock_key] = asyncio.Lock()
+
+        story_lock = self.story_locks[lock_key]
+        
+        async with story_lock:
             request = self.approval_queue.get_request(story_id, platform)
             if not request:
                 print(f"⚠️ Webhook Error: No pending request found for {platform}/{story_id}")
