@@ -89,19 +89,19 @@ class NewsHunterAgent:
             if not title or len(title) < 10:
                 continue
                 
-            # 1. Check exact duplicate cache first (fast)
+            # 1. Check exact duplicate cache first
             if self.story_cache.has_story(title):
                 print(f"EXACT HIT: Skipping '{title[:50]}...' - found in story cache")
                 continue
             
-            # 2. Check semantic similarity (slower but more thorough)
+            # 2. Check semantic similarity
             text_to_embed = f"{title}\n{description[:200]}"
             embedding = await llm_client.get_embedding(text_to_embed)
             
             if not embedding:
                 continue
                 
-            if self.semantic_cache.is_story_similar(embedding, threshold=0.40):  # Slightly stricter threshold
+            if self.semantic_cache.is_story_similar(embedding, threshold=0.35):
                 print(f"SEMANTIC HIT: Skipping '{title[:50]}...' - semantically similar story found")
                 continue
             
@@ -137,15 +137,43 @@ class NewsHunterAgent:
             articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
-        You are a fast news curator. Rank these {len(articles)} articles by viral potential and importance.
-        Focus on: Very Interesting, Amazing news, shocking news, unusual events, celebrity drama, political conflicts.
-        Avoid: routine updates, minor incidents, technical announcements.
-        
-        Articles:\n{articles_text}
+            You are a viral news curator for almost mostly Indian audiences. Rank these {len(articles)} articles by their potential to go viral and engage readers.
 
-        Return ONLY valid JSON:
-        {{"ranked_articles": [{{"index": 1, "viral_score": 9.0}}, {{"index": 2, "viral_score": 3}}]}}
-        """
+            **HIGH PRIORITY STORIES (Score 8-10):**
+            - Medical miracles & survival stories (like "woman declared dead comes back to life")
+            - Scientific discoveries with shocking implications (climate, environment, space)
+            - Major policy changes affecting millions (app bans, new laws, infrastructure)
+            - First-time achievements (missile tests, space missions, record-breaking projects)
+            - Unusual incidents that sound unbelievable but are true
+            - Celebrity shocking news or major controversies
+            - Environmental disasters or breakthroughs
+
+            **MEDIUM PRIORITY (Score 7-8):**
+            - Significant business developments affecting consumers
+            - Major infrastructure announcements with clear benefits
+            - International relations with direct India impact
+            - Technology breakthroughs changing daily life
+
+            **LOW PRIORITY (Score 1-4):**
+            - Routine political statements & meetings
+            - Regular court proceedings without major verdicts
+            - Administrative appointments
+            - Minor incident reports
+            - Repeated themes we've seen this week
+
+            **Examples of PERFECT viral headlines:**
+            - "Ujjain woman declared dead comes back to life on way to cremation"
+            - "Scientists declare rainbows to go extinct from India soon"
+            - "India officially BANS betting apps like Dream11"
+            - "India successfully tests Agni-5 ballistic nuclear missile"
+            - "Trump says india and russia dead economy"
+            - "China and India getting close thanks to trump"
+
+            Articles:\n{articles_text}
+
+            Return ONLY valid JSON - rank ALL articles:
+            {{"ranked_articles": [{{"index": 1, "viral_score": 9.2, "reason": "Medical miracle story"}}, {{"index": 2, "viral_score": 3.1, "reason": "Routine meeting"}}]}}
+            """
         
         print("STAGE 1: TRIAGE - Ranking unique articles...")
         response = await llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
@@ -188,9 +216,12 @@ class NewsHunterAgent:
         - Focus on the ACTUAL NEWS impact, not just drama
 
         **Good Examples:**
-        - "Trump Announces 50% Tariff on Indian Goods"
-        - "Pakistan's Response to Operation Sindoor: Full Details Emerge" 
-        - "80+ Air India Flights Cancelled as Pilots Strike Continues"
+        - "Ujjain woman declared dead comes back to life on way to cremation"
+        - "Scientists declare rainbows to go extinct from India soon"
+        - "India officially BANS betting apps like Dream11"
+        - "India successfully tests Agni-5 ballistic nuclear missile"
+        - "Trump says india and russia dead economy"
+        - "China and India getting close thanks to trump"
 
         **Your Task:**
         Create distinct, varied headlines for these {len(articles)} stories.
@@ -216,7 +247,6 @@ class NewsHunterAgent:
         
         Rules: 
         - Skip non-news content. Each headline must be unique in style and tone.
-        - Give very good headlines and should be easy english to understand.
         """
         
         print("STAGE 2: CREATIVE DESK - Generating varied headlines...")
