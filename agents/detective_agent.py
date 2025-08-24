@@ -208,9 +208,7 @@ class DetectiveAgent:
             print(f"🧠 Gemini AI analysis ({analysis_type}): {headline[:50]}...")
             
             # Use new smart generate with Gemini for AI grounding
-            response = await llm_client.smart_generate_with_search(prompt, max_tokens=3000)
-
-            print(f"gemini ai grounding response: {analysis_type}: {response}")
+            response = await llm_client.smart_generate_with_search(prompt, max_tokens=4000)
 
             if "error" in response:
                 return {"success": False, "error": response["error"]}

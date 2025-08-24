@@ -152,7 +152,8 @@ class ScriptWriterAgent:
             - Add natural pauses and emphasis points
             - Include specific data points and expert quotes
             - End with strong opinion/takeaway
-            - Remember: If news is not very important make max of 2 mins script. And if news is important and impactful then make upto 4 mins of script
+            - Remember: If news is not very important make max of 1-2 mins script. And if news is important and impactful then make upto 4 mins of script
+            - Include natural pauses like this in script ... or [pause]
 
             FOR INSTAGRAM:
             - Create engaging story content that works as standalone post
@@ -182,17 +183,17 @@ class ScriptWriterAgent:
               "youtube": {{
                 "full_script": "CREATE COMPLETE 2-3 MINUTE SCRIPT with as per below hook,context etc but dont include [HOOK - 15 seconds],[CONTEXT - 30 seconds] etc keyword in the script:
                 
-                [HOOK - 15 seconds]: Start with attention-grabbing statement using specific fact or recent development
+                [HOOK]: Start with attention-grabbing statement using specific fact or recent development
                 
-                [CONTEXT - 30 seconds]: Provide essential background using investigation data, mention key players
+                [CONTEXT]: Provide essential background using investigation data, mention key players
                 
-                [ANALYSIS - 90 seconds]: Deep dive into verified facts, expert opinions, official positions. Include specific numbers, quotes, developments
+                [ANALYSIS]: Deep dive into verified facts, expert opinions, official positions. Include specific numbers, quotes, developments
                 
-                [INDIAN PERSPECTIVE - 30 seconds]: How this affects India, Indian interests, our stance vs others
+                [INDIAN PERSPECTIVE]: How this affects India, Indian interests, our stance vs others
                 
-                [GLOBAL IMPACT - 30 seconds]: Broader implications using impact analysis data
+                [GLOBAL IMPACT]: Broader implications using impact analysis data
                 
-                [CONCLUSION - 15 seconds]: Strong opinion-based ending with clear takeaway
+                [CONCLUSION]: Strong opinion-based ending with clear takeaway
                 
                 WRITE ACTUAL SCRIPT CONTENT - not just structure descriptions. Use natural speaking rhythm with pauses marked as [PAUSE]. Include emphasis points [EMPHASIS]. Make it sound like Palki Sharma's style - confident, opinionated, fact-based.",
                 
