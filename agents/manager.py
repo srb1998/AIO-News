@@ -73,7 +73,7 @@ class ManagerAgent:
             # --- GATE 1: IMPROVED STORY SELECTION WITH PRE-FILTERING ---
             print("\n🔄 Step 1: News Hunter - Gathering and filtering articles...")
             hunter_result = await self.agents["news_hunter"].hunt_daily_news(
-                max_articles_to_fetch=50,  # Fetch more since we're filtering early
+                max_articles_to_fetch=50, 
                 top_n_to_process=6  # Process more to ensure we get good variety
             )
             final_headlines = hunter_result.get("top_headlines", [])
@@ -105,7 +105,7 @@ class ManagerAgent:
             }
 
             # Send selection notification
-            display_headlines = final_headlines[:5]
+            display_headlines = final_headlines[:6]
             timeout = settings.WORKFLOW_TIMING["hitl_selection_timeout_seconds"]
             print(f"GATE 1: Presenting {len(display_headlines)} headlines for selection. Waiting {timeout}s...")
             
