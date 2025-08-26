@@ -351,7 +351,7 @@ class DetectiveAgent:
             RECENT DEVELOPMENTS:
             {chr(10).join(f"- {dev}" for dev in data['recent_developments'][:4])}
             
-            BACKGROUND CONTEXT: {data['background_context'][:400]}
+            BACKGROUND CONTEXT: {str(data.get('background_context', ''))[:400]}
             
             EXPERT OPINIONS:
             {chr(10).join(f"- {opinion}" for opinion in data['expert_opinions'][:3])}
