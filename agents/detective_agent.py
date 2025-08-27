@@ -79,6 +79,7 @@ class DetectiveAgent:
         
         content_data = {
             "headline": story.get("headline", ""),
+            "subheadline": story.get("subheadline", ""),
             "original_summary": story.get("summary", ""),
             "category": story.get("category", "general"),
             "priority": story.get("priority", 0),

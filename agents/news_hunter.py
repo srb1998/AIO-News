@@ -209,8 +209,8 @@ class NewsHunterAgent:
                     article['curiosity_score'] = item.get("curiosity_score", 0)
                     ranked_articles.append(article)
             
-            ranked_articles.sort(key=lambda x: x['viral_score'], reverse=True)
             return {"success": True, "ranked_articles": ranked_articles, "token_usage": response.get("token_usage")}
+        
         except Exception as e:
             print(f"❌ Triage parsing failed: {e}")
             return {"success": False, "error": str(e)}
