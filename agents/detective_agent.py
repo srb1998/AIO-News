@@ -145,6 +145,24 @@ class DetectiveAgent:
         
         print(f"✅ Enhanced extraction: {content_data['data_sources_count']}/3 Gemini sources + original")
         return content_data
+    
+    def _extract_json_from_response(self, content: str) -> str:
+        """
+        Extracts a JSON object from a string, ignoring leading/trailing text and markdown.
+        """
+        # First, try to find a JSON block within markdown ```json ... ```
+        match = re.search(r'```json\s*(\{.*?\})\s*```', content, re.DOTALL)
+        if match:
+            return match.group(1)
+
+        # If no markdown block, find the first '{' and the last '}'
+        start = content.find('{')
+        end = content.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            return content[start:end+1]
+        
+        # Fallback for simple cases
+        return content
 
     async def _gemini_ai_grounding(self, headline: str, summary: str, analysis_type: str) -> Dict[str, Any]:
         """
@@ -216,7 +234,7 @@ class DetectiveAgent:
             
             # Parse JSON response
             try:
-                json_content = self._extract_json_from_gemini_response(response["content"])
+                json_content = self._extract_json_from_response(response["content"])
                 parsed_data = json.loads(json_content)
                 parsed_data["success"] = True
                 
@@ -231,22 +249,22 @@ class DetectiveAgent:
             print(f"❌ Gemini AI grounding ({analysis_type}) failed: {e}")
             return {"success": False, "error": str(e)}
 
-    def _extract_json_from_gemini_response(self, content: str) -> str:
-        """
-        Extract JSON content from Gemini response
-        """
-        # Remove markdown code blocks if present
-        content = re.sub(r'```json\s*', '', content)
-        content = re.sub(r'```\s*', '', content)
+    # def _extract_json_from_gemini_response(self, content: str) -> str:
+    #     """
+    #     Extract JSON content from Gemini response
+    #     """
+    #     # Remove markdown code blocks if present
+    #     content = re.sub(r'```json\s*', '', content)
+    #     content = re.sub(r'```\s*', '', content)
         
-        # Find JSON object boundaries
-        start_idx = content.find('{')
-        end_idx = content.rfind('}') + 1
+    #     # Find JSON object boundaries
+    #     start_idx = content.find('{')
+    #     end_idx = content.rfind('}') + 1
         
-        if start_idx != -1 and end_idx != -1:
-            return content[start_idx:end_idx]
+    #     if start_idx != -1 and end_idx != -1:
+    #         return content[start_idx:end_idx]
         
-        return content
+    #     return content
 
     def _create_gemini_fallback(self, analysis_type: str, headline: str, summary: str) -> Dict[str, Any]:
         """
@@ -274,7 +292,7 @@ class DetectiveAgent:
     
     async def _enhanced_analyze_with_llm(self, enhanced_research_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Analyze comprehensive research data with detailed prompting (UNCHANGED)
+        Analyze comprehensive research data with detailed prompting
         """
         print("🧠 Enhanced LLM analysis with comprehensive data...")
         
@@ -377,7 +395,7 @@ class DetectiveAgent:
         Format LLM analysis with additional research data
         """
         try:
-            cleaned_content = re.sub(r"^```json|```$", "", llm_content.strip()).strip()
+            cleaned_content = self._extract_json_from_response(llm_content)
             analysis_data = json.loads(cleaned_content)
             
             reports = analysis_data.get("investigation_reports", [])
@@ -441,7 +459,7 @@ class DetectiveAgent:
                 "script_suggestions": f"Present as developing {data['category']} story with emphasis on recent facts",
                 "visual_needs": ["Relevant news graphic", "Statistical chart if applicable"],
                 "credibility_score": 7,
-                "background_context": data["background_context"][:200],
+                "background_context": str(data.get("background_context", ""))[:200],
                 "source": data["source"],
                 "category": data["category"],
                 "investigation_timestamp": time.time(),
