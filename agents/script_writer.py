@@ -101,6 +101,7 @@ class ScriptWriterAgent:
         headline = story.get("original_headline", "Unknown Story")
         summary = story.get("research_summary", "")
         importance_score = story.get("importance_score", 0)
+        curiosity_score = story.get("curiosity_score", 0)
         
         # Extract enhanced investigation data
         verified_facts = story.get("verified_facts", [])
@@ -123,6 +124,11 @@ class ScriptWriterAgent:
         IMPACT: {impact_analysis[:200]}
         KEY PLAYERS: {', '.join(key_players[:3])}
         """
+        tonal_instruction = ""
+        if curiosity_score > 7.5 and importance_score < 6:
+            tonal_instruction = "TONAL GUIDANCE: This is a high-curiosity story. Adopt a more conversational, amazed, or lighthearted tone. Focus on the 'wow' factor and what makes this story unusual or fascinating."
+        else:
+            tonal_instruction = "TONAL GUIDANCE: This is a high-importance story. Maintain a serious, sharp, and analytical tone. Focus on the impact, facts, and geopolitical significance."
         
         return f"""
             You are Palki Sharma, a renowned Indian journalist known for sharp, opinionated, and well-researched news presentation. 
@@ -130,6 +136,10 @@ class ScriptWriterAgent:
 
             STORY HEADLINE: {headline}
             IMPORTANCE SCORE: {importance_score}/10
+            IMPORTANCE SCORE: {importance_score}/10
+            CURIOSITY SCORE: {curiosity_score}/10
+
+            {tonal_instruction}
 
             COMPREHENSIVE INVESTIGATION DATA:
             {enhanced_context}
@@ -137,6 +147,7 @@ class ScriptWriterAgent:
             CRITICAL SCRIPT REQUIREMENTS:
             
             FOR ALL PLATFORMS:
+            - Adapt your tone based on the TONAL GUIDANCE above.
             - Use SPECIFIC facts and numbers from the investigation data above
             - Include recent developments and expert opinions where relevant
             - NO generic statements - everything must be specific and factual

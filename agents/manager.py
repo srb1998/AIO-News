@@ -53,7 +53,7 @@ class ManagerAgent:
     
     async def execute_daily_workflow(self, posting_mode: str = "hitl") -> Dict[str, Any]:
         """
-        IMPROVED: Execute workflow with better cache integration and debugging
+        Execute workflow with better cache integration and debugging
         """
         print("🎯 Manager: Starting IMPROVED daily workflow with pre-filtering...")
         workflow_id = f"workflow_{datetime.now().strftime('%d-%b-%Y_%H-%M-%S')}"
@@ -74,7 +74,7 @@ class ManagerAgent:
             print("\n🔄 Step 1: News Hunter - Gathering and filtering articles...")
             hunter_result = await self.agents["news_hunter"].hunt_daily_news(
                 max_articles_to_fetch=50, 
-                top_n_to_process=6  # Process more to ensure we get good variety
+                top_n_to_process=12  # Process more to ensure we get good variety
             )
             final_headlines = hunter_result.get("top_headlines", [])
             
@@ -105,7 +105,7 @@ class ManagerAgent:
             }
 
             # Send selection notification
-            display_headlines = final_headlines[:6]
+            display_headlines = final_headlines[:10]
             timeout = settings.WORKFLOW_TIMING["hitl_selection_timeout_seconds"]
             print(f"GATE 1: Presenting {len(display_headlines)} headlines for selection. Waiting {timeout}s...")
             

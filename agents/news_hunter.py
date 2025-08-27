@@ -20,7 +20,7 @@ class NewsHunterAgent:
     @track_tokens("NewsHunter")
     async def hunt_daily_news(self, max_articles_to_fetch: int = 40, top_n_to_process: int = 5) -> Dict[str, Any]:
         """
-        FIXED FLOW: Cache filtering happens BEFORE LLM stages to prevent repetitive processing
+        FLOW: Cache filtering happens BEFORE LLM stages to prevent repetitive processing
         """
         print("🕵️ News Hunter Agent: Starting efficient news hunt with pre-filtering...")
 
@@ -44,14 +44,43 @@ class NewsHunterAgent:
         
         ranked_articles = triage_result.get("ranked_articles", [])
 
-        # 4. STAGE 2 CREATIVE DESK: Process top articles
-        promising_articles = ranked_articles[:top_n_to_process]
-        print(f"📰 Sending top {len(promising_articles)} articles to Creative Desk.")
+         # NEW: DUAL-FUNNEL SELECTION LOGIC
+        print("⚖️ Applying Dual-Funnel Selection: 5 Important + 5 Curious stories...")
+
+        # Funnel 1: Top 5 by Importance
+        ranked_articles.sort(key=lambda x: x.get('importance_score', 0), reverse=True)
+        important_stories = ranked_articles[:5]
+
+        # Create a set of selected titles to avoid duplicates
+        selected_titles = {story['title'] for story in important_stories}
+
+        # Funnel 2: Top 5 by Curiosity from the remaining pool
+        remaining_articles = [story for story in ranked_articles if story['title'] not in selected_titles]
+        remaining_articles.sort(key=lambda x: x.get('curiosity_score', 0), reverse=True)
+        curious_stories = remaining_articles[:5]
+
+        # Combine the two funnels
+        promising_articles = important_stories + curious_stories
+        print(f"📰 Selected {len(promising_articles)} diverse stories for Creative Desk.")
+
+        # 4. STAGE 2 CREATIVE DESK: Process the selected diverse articles
         creative_result = await self._stage2_creative_desk(promising_articles)
         if not creative_result.get("success") or not creative_result.get("headlines"):
             return {"success": False, "error": "Creative Desk stage failed."}
 
-        final_headlines = creative_result.get("headlines", [])
+        final_headlines = []
+        creative_headlines = creative_result.get("headlines", [])
+
+        # Create a mapping from original index to the article data
+        article_map = {i: article for i, article in enumerate(promising_articles, 1)}
+
+        for creative_headline in creative_headlines:
+            original_index = creative_headline.pop("original_index", None)
+            if original_index and original_index in article_map:
+                original_article = article_map[original_index]
+                # Merge the new creative data with the original article data (including scores)
+                original_article.update(creative_headline)
+                final_headlines.append(original_article)
 
         # 5. CACHE FINAL RESULTS: Add processed stories to cache for future filtering
         await self._cache_final_results(final_headlines)
@@ -62,7 +91,8 @@ class NewsHunterAgent:
             "cost": triage_result.get("token_usage", {}).get("cost", 0) + creative_result.get("token_usage", {}).get("cost", 0)
         }
 
-        final_headlines.sort(key=lambda x: x.get("priority", 0), reverse=True)
+        # Sort final list by importance for presentation, but it contains the full mix
+        final_headlines.sort(key=lambda x: x.get("importance_score", 0), reverse=True)
         return {
             "success": True,
             "articles_fetched": len(raw_articles),
@@ -137,42 +167,28 @@ class NewsHunterAgent:
             articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
-            You are a viral news curator for almost mostly Indian audiences. Rank these {len(articles)} articles by their potential to go viral and engage readers.
+            You are a viral news curator for an Indian audience. For each article, provide two separate scores: an 'importance_score' and a 'curiosity_score'.
 
-            **HIGH PRIORITY STORIES (Score 8-10):**
-            - Medical miracles & survival stories (like "woman declared dead comes back to life")
-            - Scientific discoveries with shocking implications (climate, environment, space)
-            - Major policy changes affecting millions (app bans, new laws, infrastructure)
-            - First-time achievements (missile tests, space missions, record-breaking projects)
-            - Unusual incidents that sound unbelievable but are true
-            - Celebrity shocking news or major controversies
-            - Environmental disasters or breakthroughs
+            **1. `importance_score` (1-10): How impactful and need-to-know is this?**
+            - HIGH (8-10): Major policy changes, scientific breakthroughs with huge implications, medical miracles, major geopolitical events involving India.
+            - MEDIUM (5-7): Significant business news, infrastructure projects, tech news.
+            - LOW (1-4): Routine politics, minor incidents, celebrity gossip.
 
-            **MEDIUM PRIORITY (Score 7-8):**
-            - Significant business developments affecting consumers
-            - Major infrastructure announcements with clear benefits
-            - International relations with direct India impact
-            - Technology breakthroughs changing daily life
+            **2. `curiosity_score` (1-10): How strange, amazing, or surprising is this? Does it make you say "wow"?**
+            - HIGH (8-10): Bizarre natural phenomena, incredible human achievements, heartwarming animal stories, quirky scientific findings (e.g., spinach sending emails), unexplained mysteries.
+            - MEDIUM (5-7): Interesting human-interest stories, unique cultural events, unusual art or tech projects.
+            - LOW (1-4): Standard news stories that are predictable.
 
-            **LOW PRIORITY (Score 1-4):**
-            - Routine political statements & meetings
-            - Regular court proceedings without major verdicts
-            - Administrative appointments
-            - Minor incident reports
-            - Repeated themes we've seen this week
-
-            **Examples of PERFECT viral headlines:**
-            - "Ujjain woman declared dead comes back to life on way to cremation"
-            - "Scientists declare rainbows to go extinct from India soon"
-            - "India officially BANS betting apps like Dream11"
-            - "India successfully tests Agni-5 ballistic nuclear missile"
-            - "Trump says india and russia dead economy"
-            - "China and India getting close thanks to trump"
+            **Examples for Scoring:**
+            - "India successfully tests Agni-5 ballistic nuclear missile" -> importance_score: 9.5, curiosity_score: 6.0
+            - "Ujjain woman declared dead comes back to life on way to cremation" -> importance_score: 8.0, curiosity_score: 9.8
+            - "Scientists discover a planet made of diamond" -> importance_score: 6.5, curiosity_score: 9.5
+            - "Cat nurses orphaned puppies back to health" -> importance_score: 2.0, curiosity_score: 9.0
 
             Articles:\n{articles_text}
 
             Return ONLY valid JSON - rank ALL articles:
-            {{"ranked_articles": [{{"index": 1, "viral_score": 9.2, "reason": "Medical miracle story"}}, {{"index": 2, "viral_score": 3.1, "reason": "Routine meeting"}}]}}
+            {{"ranked_articles": [{{"index": 1, "importance_score": 9.2, "curiosity_score": 5.5}}, {{"index": 2, "importance_score": 2.1, "curiosity_score": 8.9}}]}}
             """
         
         print("STAGE 1: TRIAGE - Ranking unique articles...")
@@ -189,7 +205,8 @@ class NewsHunterAgent:
                 index = item.get("index")
                 if index and 1 <= index <= len(articles):
                     article = articles[index - 1]
-                    article['viral_score'] = item.get("viral_score", 0)
+                    article['importance_score'] = item.get("importance_score", 0)
+                    article['curiosity_score'] = item.get("curiosity_score", 0)
                     ranked_articles.append(article)
             
             ranked_articles.sort(key=lambda x: x['viral_score'], reverse=True)
@@ -200,20 +217,14 @@ class NewsHunterAgent:
 
     async def _stage2_creative_desk(self, articles: List[Dict]) -> Dict[str, Any]:
         """
-        IMPROVED: Less repetitive headline generation with better style variety
+        Less repetitive headline generation with better style variety
         """
         articles_text = ""
         for i, article in enumerate(articles, 1):
-            articles_text += f"Article {i}:\nOriginal Title: {article['title']}\nSource: {article['source']}\nURL: {article['url']}\nDescription: {article['description'][:250]}...\n---\n"
+            articles_text += f"Article {i} (original_index: {i}):\nOriginal Title: {article['title']}\nSource: {article['source']}\nURL: {article['url']}\nDescription: {article['description'][:250]}...\n---\n"
         
         prompt = f"""
-        You are a skilled news editor creating engaging headlines for Indian audiences. 
-
-        **Style Variety Rules:**
-        - Use different headline structures: questions, statements, dramatic reveals
-        - Avoid repetitive words like "BOMBSHELL", "REVEALS", "DROPS" in every headline
-        - Mix emotional tones: shocking, curious, informative, urgent
-        - Focus on the ACTUAL NEWS impact, not just drama
+        You are a skilled news editor creating engaging headlines for Indian audiences.
 
         **Good Examples:**
         - "Ujjain woman declared dead comes back to life on way to cremation"
@@ -224,16 +235,14 @@ class NewsHunterAgent:
         - "China and India getting close thanks to trump"
 
         **Your Task:**
-        Create distinct, varied headlines for these {len(articles)} stories.
-        Each headline should feel different in tone and structure.
-
+        Create distinct, varied headlines for these {len(articles)} stories. Each headline should feel different in tone and structure.
         Articles:{articles_text}
-
-        Return JSON:
+        Return JSON. IMPORTANT: You MUST include the `original_index` for each story exactly as it was provided in the input.
         {{
             "top_headlines": [
                 {{
-                    "headline": "Clear, engaging headline",
+                    "original_index": 1,
+                    "headline": "Clear and very simple english headline",
                     "subheadline": "Short, punchy fun fact about the article",
                     "summary": "1-2 sentence summary",
                     "priority": 8,
