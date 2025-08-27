@@ -18,7 +18,7 @@ class NewsHunterAgent:
         self.story_cache = StoryCache(max_age_seconds=86400)  # 24 hours cache
 
     @track_tokens("NewsHunter")
-    async def hunt_daily_news(self, max_articles_to_fetch: int = 40, top_n_to_process: int = 5) -> Dict[str, Any]:
+    async def hunt_daily_news(self, max_articles_to_fetch: int = 40, top_n_to_process: int = 12) -> Dict[str, Any]:
         """
         FLOW: Cache filtering happens BEFORE LLM stages to prevent repetitive processing
         """
@@ -44,26 +44,48 @@ class NewsHunterAgent:
         
         ranked_articles = triage_result.get("ranked_articles", [])
 
-         # NEW: DUAL-FUNNEL SELECTION LOGIC
-        print("⚖️ Applying Dual-Funnel Selection: 5 Important + 5 Curious stories...")
+        # This removes duplicates from the current run before selection.
+        print(f"Deduplicating current batch of {len(ranked_articles)} articles...")
+        seen_titles = set()
+        unique_ranked_articles = []
+        for article in ranked_articles:
+            title = article.get('title', '').strip()
+            if title not in seen_titles:
+                unique_ranked_articles.append(article)
+                seen_titles.add(title)
+        print(f"Found {len(unique_ranked_articles)} unique articles after in-batch deduplication.")
+
+        print("⚖️ Applying Strict Dual-Funnel Selection...")
 
         # Funnel 1: Top 5 by Importance
-        ranked_articles.sort(key=lambda x: x.get('importance_score', 0), reverse=True)
-        important_stories = ranked_articles[:5]
+        unique_ranked_articles.sort(key=lambda x: x.get('importance_score', 0), reverse=True)
+        important_stories = unique_ranked_articles[:5]
+        print(f"✅ Selected {len(important_stories)} top stories for the 'Front Page'.")
 
         # Create a set of selected titles to avoid duplicates
         selected_titles = {story['title'] for story in important_stories}
 
         # Funnel 2: Top 5 by Curiosity from the remaining pool
-        remaining_articles = [story for story in ranked_articles if story['title'] not in selected_titles]
-        remaining_articles.sort(key=lambda x: x.get('curiosity_score', 0), reverse=True)
-        curious_stories = remaining_articles[:5]
+        remaining_articles = [story for story in unique_ranked_articles if story['title'] not in selected_titles]
+        
+        wow_factor_threshold = 7.0
+        high_wow_stories = [
+            story for story in remaining_articles 
+            if story.get('wow_factor_score', 0) >= wow_factor_threshold
+        ]
+        print(f"🔍 Applying 'Wow Factor' Quality Gate (Score >= {wow_factor_threshold})... Found {len(high_wow_stories)} qualifying stories.")
+
+        high_wow_stories.sort(key=lambda x: x.get('wow_factor_score', 0), reverse=True)
+        wow_stories = high_wow_stories[:5]
 
         # Combine the two funnels
-        promising_articles = important_stories + curious_stories
-        print(f"📰 Selected {len(promising_articles)} diverse stories for Creative Desk.")
+        promising_articles = important_stories + wow_stories
+        print(f"📰 Final selection: {len(promising_articles)} diverse stories for Creative Desk ({len(important_stories)} important + {len(wow_stories)} wow).")
 
         # 4. STAGE 2 CREATIVE DESK: Process the selected diverse articles
+        if not promising_articles:
+             return {"success": True, "message": "No stories met the selection criteria.", "top_headlines": []}
+        
         creative_result = await self._stage2_creative_desk(promising_articles)
         if not creative_result.get("success") or not creative_result.get("headlines"):
             return {"success": False, "error": "Creative Desk stage failed."}
@@ -167,28 +189,29 @@ class NewsHunterAgent:
             articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
-            You are a viral news curator for an Indian audience. For each article, provide two separate scores: an 'importance_score' and a 'curiosity_score'.
+            You are the chief editor of a digital news magazine for an Indian audience. Your task is to evaluate articles for two separate sections: The Front Page (Importance) and The Features Section (Wow Factor). Provide two separate scores for each article.
 
-            **1. `importance_score` (1-10): How impactful and need-to-know is this?**
-            - HIGH (8-10): Major policy changes, scientific breakthroughs with huge implications, medical miracles, major geopolitical events involving India.
-            - MEDIUM (5-7): Significant business news, infrastructure projects, tech news.
-            - LOW (1-4): Routine politics, minor incidents, celebrity gossip.
+            **1. `importance_score` (1-10): Is this "Front Page" material? Is it need-to-know?**
+            - HIGH (8-10): Major policy changes (app bans), significant geopolitical events involving India, scientific breakthroughs with huge implications, medical miracles.
+            - LOW (1-4): Routine politics, minor incidents, celebrity gossip, predictable sports results.
 
-            **2. `curiosity_score` (1-10): How strange, amazing, or surprising is this? Does it make you say "wow"?**
-            - HIGH (8-10): Bizarre natural phenomena, incredible human achievements, heartwarming animal stories, quirky scientific findings (e.g., spinach sending emails), unexplained mysteries.
-            - MEDIUM (5-7): Interesting human-interest stories, unique cultural events, unusual art or tech projects.
-            - LOW (1-4): Standard news stories that are predictable.
+            **2. `wow_factor_score` (1-10): Is this "Features Section" material? Is it surprising, unique, or awe-inspiring?**
+            - HIGH (8-10): The truly unbelievable. Bizarre natural phenomena (sky turns pink), awe-inspiring achievements (man survives impossible odds), heartwarming animal stories, mind-bending discoveries (mushrooms communicating).
+            - LOW (1-4): Predictable and mundane news.
 
-            **Examples for Scoring:**
-            - "India successfully tests Agni-5 ballistic nuclear missile" -> importance_score: 9.5, curiosity_score: 6.0
-            - "Ujjain woman declared dead comes back to life on way to cremation" -> importance_score: 8.0, curiosity_score: 9.8
-            - "Scientists discover a planet made of diamond" -> importance_score: 6.5, curiosity_score: 9.5
-            - "Cat nurses orphaned puppies back to health" -> importance_score: 2.0, curiosity_score: 9.0
+            **IMPORTANT ANTI-EXAMPLES for "Wow Factor":**
+            - The following are NOT high "wow_factor_score" stories: routine political debates, corporate earnings reports, standard international relations updates. These are often important, but not "wow".
+
+            **Scoring Examples:**
+            - "India successfully tests Agni-5 missile" -> importance_score: 9.5, wow_factor_score: 5.0
+            - "Ujjain woman declared dead comes back to life" -> importance_score: 8.0, wow_factor_score: 9.8
+            - "Scientists discover a planet made of diamond" -> importance_score: 6.5, wow_factor_score: 9.5
+            - "Rare deep-sea squid filmed for the first time" -> importance_score: 2.0, wow_factor_score: 9.2
 
             Articles:\n{articles_text}
 
-            Return ONLY valid JSON - rank ALL articles:
-            {{"ranked_articles": [{{"index": 1, "importance_score": 9.2, "curiosity_score": 5.5}}, {{"index": 2, "importance_score": 2.1, "curiosity_score": 8.9}}]}}
+            Return ONLY valid JSON - score ALL articles:
+            {{"ranked_articles": [{{"index": 1, "importance_score": 9.2, "wow_factor_score": 4.5}}, {{"index": 2, "importance_score": 2.1, "wow_factor_score": 8.9}}]}}
             """
         
         print("STAGE 1: TRIAGE - Ranking unique articles...")
@@ -206,7 +229,7 @@ class NewsHunterAgent:
                 if index and 1 <= index <= len(articles):
                     article = articles[index - 1]
                     article['importance_score'] = item.get("importance_score", 0)
-                    article['curiosity_score'] = item.get("curiosity_score", 0)
+                    article['wow_factor_score'] = item.get("wow_factor_score", 0)
                     ranked_articles.append(article)
             
             return {"success": True, "ranked_articles": ranked_articles, "token_usage": response.get("token_usage")}

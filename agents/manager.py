@@ -10,6 +10,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 from config.settings import settings
 from utils.cloudinary_uploader import upload_json_to_cloudinary
+from utils.helper import make_dict_json_serializable
 import asyncio
 import os
 import json
@@ -210,8 +211,10 @@ class ManagerAgent:
             if workflow_id in self.pending_workflows:
                 del self.pending_workflows[workflow_id]
             
+            print("☁️ Preparing workflow result for upload...")
+            sanitized_result = make_dict_json_serializable(workflow_result)
             # Upload workflow result to Cloudinary
-            summary_url = await upload_json_to_cloudinary(workflow_result, workflow_id)
+            summary_url = await upload_json_to_cloudinary(sanitized_result, workflow_id)
             if summary_url:
                 await self.telegram_bot.send_workflow_summary_notification(workflow_id, summary_url)
 
