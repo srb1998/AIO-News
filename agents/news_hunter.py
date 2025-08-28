@@ -215,7 +215,7 @@ class NewsHunterAgent:
             """
         
         print("STAGE 1: TRIAGE - Ranking unique articles...")
-        response = await llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
+        response = await llm_client.smart_generate(prompt, max_tokens=20000, priority="normal")
 
         if "error" in response: return {"success": False, "error": response["error"]}
         
@@ -282,7 +282,7 @@ class NewsHunterAgent:
         """
         
         print("STAGE 2: CREATIVE DESK - Generating varied headlines...")
-        response = await llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
+        response = await llm_client.smart_generate(prompt, max_tokens=20000, priority="normal")
 
         if "error" in response: return {"success": False, "error": response["error"]}
 

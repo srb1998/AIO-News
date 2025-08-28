@@ -74,7 +74,7 @@ class ScriptWriterAgent:
         
         try:
             # Use enhanced generation with more tokens for detailed content
-            response = await self.llm_client.smart_generate(prompt, max_tokens=8000, priority="normal")
+            response = await self.llm_client.smart_generate(prompt, max_tokens=14000, priority="normal")
             
             # Parse the comprehensive response
             content = response["content"]

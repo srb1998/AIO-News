@@ -227,7 +227,7 @@ class DetectiveAgent:
             print(f"🧠 Gemini AI analysis ({analysis_type}): {headline[:50]}...")
             
             # Use new smart generate with Gemini for AI grounding
-            response = await llm_client.smart_generate_with_search(prompt, max_tokens=4000)
+            response = await llm_client.smart_generate_with_search(prompt, max_tokens=6000)
 
             if "error" in response:
                 return {"success": False, "error": response["error"]}
@@ -345,7 +345,7 @@ class DetectiveAgent:
         Focus on creating RICH, DETAILED content that gives script writers substantial material to work with.
         """
         
-        return await llm_client.smart_generate(prompt, max_tokens=12000, priority="normal")
+        return await llm_client.smart_generate(prompt, max_tokens=14000, priority="normal")
 
     def _format_enhanced_research(self, enhanced_data: List[Dict[str, Any]]) -> str:
         """
