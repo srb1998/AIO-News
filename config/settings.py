@@ -1,4 +1,4 @@
-# FILE: config/settings.py (Updated with minor fixes and Phase 2 preparation)
+# config/settings.py
 
 import os
 from dotenv import load_dotenv
@@ -9,7 +9,7 @@ load_dotenv()
 class Settings:
     def __init__(self):
         # Create output directory if it doesn't exist
-        os.makedirs("data/outputs/workflow", exist_ok=True)  # Ensure output directory exists
+        os.makedirs("data/outputs/workflow", exist_ok=True)
         
         # API Keys
         self.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -24,13 +24,13 @@ class Settings:
         self.COST_PER_1K_TOKENS_OPENAI = float(os.getenv("COST_PER_1K_TOKENS_OPENAI", 0.00015))
         
         # Brave Search Configuration
-        self.BRAVE_ARTICLE_COUNT_WORLD = int(os.getenv("BRAVE_ARTICLE_COUNT_WORLD", 5))
-        self.BRAVE_ARTICLE_COUNT_INDIA = int(os.getenv("BRAVE_ARTICLE_COUNT_INDIA", 10))
+        self.BRAVE_ARTICLE_COUNT_WORLD = int(os.getenv("BRAVE_ARTICLE_COUNT_WORLD", 3))
+        self.BRAVE_ARTICLE_COUNT_INDIA = int(os.getenv("BRAVE_ARTICLE_COUNT_INDIA", 3))
         self.BRAVE_CACHE_DURATION = int(os.getenv("BRAVE_CACHE_DURATION", 40)) 
         
         # News Priority Settings
-        self.WORLD_NEWS_PRIORITY = float(os.getenv("WORLD_NEWS_PRIORITY", 0.2))
-        self.INDIA_NEWS_PRIORITY = float(os.getenv("INDIA_NEWS_PRIORITY", 0.8))
+        self.WORLD_NEWS_PRIORITY = float(os.getenv("WORLD_NEWS_PRIORITY", 0.35))
+        self.INDIA_NEWS_PRIORITY = float(os.getenv("INDIA_NEWS_PRIORITY", 0.65))
         self.BREAKING_NEWS_BOOST = float(os.getenv("BREAKING_NEWS_BOOST", 2.0))
         
         # Breaking News

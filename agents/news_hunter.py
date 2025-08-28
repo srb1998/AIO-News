@@ -189,7 +189,7 @@ class NewsHunterAgent:
             articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
-            You are the chief editor of a digital news magazine for an Indian audience. Your task is to evaluate articles for two separate sections: The Front Page (Importance) and The Features Section (Wow Factor). Provide two separate scores for each article.
+            You are the chief editor of a digital news magazine. Your task is to evaluate articles for two separate sections: The Front Page (Importance) and The Features Section (Wow Factor). Provide two separate scores for each article.
 
             **1. `importance_score` (1-10): Is this "Front Page" material? Is it need-to-know?**
             - HIGH (8-10): Major policy changes (app bans), significant geopolitical events involving India, scientific breakthroughs with huge implications, medical miracles.
@@ -256,6 +256,11 @@ class NewsHunterAgent:
         - "India successfully tests Agni-5 ballistic nuclear missile"
         - "Trump says india and russia dead economy"
         - "China and India getting close thanks to trump"
+
+        **Bad Examples:**
+        - "India Dares US: Russian Oil Imports Set to Surge Despite Tariff Threats!"
+        - "Dark Clouds Over Green Energy: Trump Tariffs Cripple India's Solar Dreams!"
+        - " Trump's Tariff Hammer Falls: India Eyes MORE Russian Oil Amidst 50% Export Hit!"
 
         **Your Task:**
         Create distinct, varied headlines for these {len(articles)} stories. Each headline should feel different in tone and structure.
