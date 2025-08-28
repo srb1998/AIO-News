@@ -136,8 +136,7 @@ class ScriptWriterAgent:
 
             STORY HEADLINE: {headline}
             IMPORTANCE SCORE: {importance_score}/10
-            IMPORTANCE SCORE: {importance_score}/10
-            CURIOSITY SCORE: {curiosity_score}/10
+            CURIOSITY SCORE: {wow_factor_score}/10
 
             {tonal_instruction}
 
