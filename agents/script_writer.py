@@ -179,27 +179,27 @@ class ScriptWriterAgent:
 
             {{
               "instagram": {{
-                "story_content": "Write a detailed, informative caption using specific facts from the investigation. Begin with a strong, attention-grabbing first line that makes people want to read more. Include expert opinions or official statements. End with a definitive conclusion, not questions.",
+                "story_content": "Write a informative caption using specific facts from the investigation. Begin with a strong, attention-grabbing first line that makes people want to read more. Include expert opinions or official statements. End with a definitive conclusion, not questions.",
                 "estimated_engagement": "high/medium/low",
                 "hashtags": ["#FactCheck", "#IndianPerspective", "#GlobalNews", "relevant topic hashtags"],
                 "content_style": "informative_conversational"
               }},
               "twitter": {{
-                "tweet": "Write a concise, update-style news tweet. Start with a strong hook, include one key fact or number, and end with a clear, definitive conclusion. Do not create a thread or provide a detailed breakdown. No questions - make definitive statements.",
+                "tweet": "Write a concise, update-style news tweet, Include one key fact or number. Do not create a thread or provide a detailed breakdown. No questions - make definitive statements.",
                 "hashtags": ["#NewsUpdate", "#IndiaFirst", "#FactsMatter", "relevant hashtags"],
-                "image_suggestions": ["Specific infographic showing key statistics", "Photo of main subject/location"],
+                "image_suggestions": [],
                 "posting_priority": "immediate/scheduled",
               }},
               "youtube": {{
-                "full_script": "CREATE COMPLETE 2-3 MINUTE SCRIPT with as per below hook,context etc but dont include [HOOK - 15 seconds],[CONTEXT - 30 seconds] etc keyword in the script:
+                "full_script": "CREATE COMPLETE 2-3 MINUTE Hinglish script in modern way but keep it crisp and clear, and dont use vague words or make it too much unformal, keep straight to point also dont include [HOOK],[CONTEXT] etc keyword in the script:
                 
                 [HOOK]: Start with attention-grabbing statement using specific fact or recent development
                 
-                [CONTEXT]: Provide essential background using investigation data, mention key players
+                [CONTEXT]: Provide essential background using investigation data, mention key players. keep it short only
                 
                 [ANALYSIS]: Deep dive into verified facts, expert opinions, official positions. Include specific numbers, quotes, developments
                 
-                [INDIAN PERSPECTIVE]: How this affects India, Indian interests, our stance vs others
+                [INDIAN PERSPECTIVE]: How this affects India, Indian interests, our stance vs others.
                 
                 [GLOBAL IMPACT]: Broader implications using impact analysis data
                 
