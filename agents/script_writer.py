@@ -191,8 +191,8 @@ class ScriptWriterAgent:
                 "posting_priority": "immediate/scheduled",
               }},
               "youtube": {{
-                "full_script": "CREATE COMPLETE 2-3 MINUTE Hinglish script in modern way but keep it crisp and clear, and dont use vague words or make it too much unformal, keep straight to point also dont include [HOOK],[CONTEXT] etc keyword in the script:
-                
+                "full_script": "CREATE COMPLETE 2-3 MINUTE Hindi script like Hinglish(Hindi sentence + English words) in modern way but keep it crisp and clear, and dont use vague words or make it too much unformal, keep straight to point also dont include [HOOK],[CONTEXT] etc keyword in the script:
+
                 [HOOK]: Start with attention-grabbing statement using specific fact or recent development
                 
                 [CONTEXT]: Provide essential background using investigation data, mention key players. keep it short only
@@ -208,15 +208,10 @@ class ScriptWriterAgent:
                 WRITE ACTUAL SCRIPT CONTENT - not just structure descriptions. Use natural speaking rhythm with pauses marked as [PAUSE]. Include emphasis points [EMPHASIS]. Make it sound like Palki Sharma's style - confident, opinionated, fact-based.",
                 
                 "estimated_duration": "2-4 minutes",
-                "image_suggestions": [
-                  "B-roll: Specific relevant footage based on story",
-                  "Graphics: Key statistics from verified facts",
-                  "Maps/Charts: Visual representation of impact data",
-                  "Photos: Key players mentioned in investigation"
-                ],
+                "image_suggestions": [],
                 "anchor_personality": "confident_opinionated_palki_style",
                 "teleprompter_ready": true,
-                "pacing_notes": "Include natural pauses, fast, emphasis points, and conversational flow"
+                "pacing_notes": "Give pacing notes based on news example: Include natural pauses, fast, emphasis points, and conversational flow"
               }}
             }}
 

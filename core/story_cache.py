@@ -4,7 +4,6 @@ import json
 import os
 import time
 import re
-from filelock import FileLock
 from typing import Set
 
 class StoryCache:
@@ -14,31 +13,27 @@ class StoryCache:
     def __init__(self, cache_file='data/story_cache.json', max_age_seconds=86400): # 24 hours
         self.cache_file = cache_file
         self.max_age_seconds = max_age_seconds
-        self.lock = FileLock(f"{self.cache_file}.lock")
         self._ensure_cache_exists()
 
     def _ensure_cache_exists(self):
         """Creates cache file and directory if missing"""
         os.makedirs(os.path.dirname(self.cache_file), exist_ok=True)
         if not os.path.exists(self.cache_file):
-            with self.lock:
-                with open(self.cache_file, 'w') as f:
-                    json.dump({}, f)
+            with open(self.cache_file, 'w') as f:
+                json.dump({}, f)
 
     def _load_cache(self) -> dict:
         """Loads cache with error handling"""
-        with self.lock:
-            try:
-                with open(self.cache_file, 'r') as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, FileNotFoundError):
-                return {}
+        try:
+            with open(self.cache_file, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return {}
 
     def _save_cache(self, cache_data: dict):
         """Saves cache data to file"""
-        with self.lock:
-            with open(self.cache_file, 'w') as f:
-                json.dump(cache_data, f, indent=2)
+        with open(self.cache_file, 'w') as f:
+            json.dump(cache_data, f, indent=2)
 
     def _normalize_headline(self, headline: str) -> str:
         """

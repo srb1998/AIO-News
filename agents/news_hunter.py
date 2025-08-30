@@ -195,12 +195,12 @@ class NewsHunterAgent:
             - HIGH (8-10): Major policy changes (app bans), significant geopolitical events involving India, scientific breakthroughs with huge implications, medical miracles.
             - LOW (1-4): Routine politics, minor incidents, celebrity gossip, predictable sports results.
 
-            **2. `wow_factor_score` (1-10): Is this "Features Section" material? Is it surprising, unique, or awe-inspiring?**
+            **2. `wow_factor_score` (1-10): Is this "Features Section" material? Is it surprising, unique, omg type or awe-inspiring?**
             - HIGH (8-10): The truly unbelievable. Bizarre natural phenomena (sky turns pink), awe-inspiring achievements (man survives impossible odds), heartwarming animal stories, mind-bending discoveries (mushrooms communicating).
             - LOW (1-4): Predictable and mundane news.
 
             **IMPORTANT ANTI-EXAMPLES for "Wow Factor":**
-            - The following are NOT high "wow_factor_score" stories: routine political debates, corporate earnings reports, standard international relations updates. These are often important, but not "wow".
+            - The following are NOT high "wow_factor_score" stories: routine political debates, corporate earnings reports, murder cases, standard international relations updates. These are often important, but not "wow" or awe-inspiring.
 
             **Scoring Examples:**
             - "India successfully tests Agni-5 missile" -> importance_score: 9.5, wow_factor_score: 5.0
