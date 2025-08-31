@@ -261,6 +261,10 @@ class NewsHunterAgent:
         - "Dark Clouds Over Green Energy: Trump Tariffs Cripple India's Solar Dreams!"
         - " Trump's Tariff Hammer Falls: India Eyes MORE Russian Oil Amidst 50% Export Hit!"
 
+        **Highlighting Rule:**
+        - For each headline, wrap the most important word(s) or phrase(s) that should be visually highlighted with |pipe| symbols. Example: "India officially BANS betting apps like |Dream11|".
+        - Only use | | for 1-3 key words or phrases per headline.
+        
         **Your Task:**
         Create distinct, varied headlines for these {len(articles)} stories. Each headline should feel different in tone and structure.
         Articles:{articles_text}
@@ -269,7 +273,7 @@ class NewsHunterAgent:
             "top_headlines": [
                 {{
                     "original_index": 1,
-                    "headline": "Clear and very simple english headline",
+                    "headline": "Clear and very simple english headline with |highlighted| words",
                     "subheadline": "Short, punchy fun fact about the article",
                     "summary": "1-2 sentence summary",
                     "priority": 8,
