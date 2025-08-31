@@ -196,9 +196,8 @@ class NewsHunterAgent:
             - LOW (1-4): Routine politics, minor incidents, celebrity gossip, predictable sports results.
 
             **2. `wow_factor_score` (1-10): Is this "Features Section" material? Is it surprising, unique, omg type or awe-inspiring?**
-            - HIGH (8-10): The truly unbelievable. Bizarre natural phenomena (sky turns pink), awe-inspiring achievements (man survives impossible odds), heartwarming animal stories, mind-bending discoveries (mushrooms communicating).
-            - LOW (1-4): Predictable and mundane news.
-
+            - HIGH (8-10): The truly unbelievable. Bizarre natural phenomena, awe-inspiring achievements, heartwarming animal stories, mind-bending discoveries, wholesome moments.
+            
             **IMPORTANT ANTI-EXAMPLES for "Wow Factor":**
             - The following are NOT high "wow_factor_score" stories: routine political debates, corporate earnings reports, murder cases, standard international relations updates. These are often important, but not "wow" or awe-inspiring.
 

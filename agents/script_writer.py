@@ -191,7 +191,7 @@ class ScriptWriterAgent:
                 "posting_priority": "immediate/scheduled",
               }},
               "youtube": {{
-                "full_script": "CREATE COMPLETE 2-3 MINUTE Hindi script like Hinglish(Hindi sentence + English words) in modern way but keep it crisp and clear, and dont use vague words or make it too much unformal, keep straight to point also dont include [HOOK],[CONTEXT] etc keyword in the script:
+                "full_script": "CREATE COMPLETE 2-3 minutes Hinglish(Hindi sentences + English words) script in modern way but keep it crisp and clear, and dont use vague words or make it too much unformal, give your take if possible in houmorous way, also dont include [HOOK],[CONTEXT] etc keyword in the script:
 
                 [HOOK]: Start with attention-grabbing statement using specific fact or recent development
                 

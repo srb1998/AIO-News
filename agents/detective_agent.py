@@ -28,7 +28,7 @@ class DetectiveAgent:
         print(f"🕵️ Detective Agent: Starting investigation with Gemini AI grounding of {len(top_headlines)} stories...")
         
         # Filter and sort by priority
-        priority_stories = [h for h in top_headlines if h.get("priority", 0) >= 6]
+        priority_stories = [h for h in top_headlines if h.get("priority", 0) >= 4]
         priority_stories.sort(key=lambda x: x.get("priority", 0), reverse=True)
         stories_to_investigate = priority_stories[:max_stories]
         
