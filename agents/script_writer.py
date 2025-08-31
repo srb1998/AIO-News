@@ -131,7 +131,7 @@ class ScriptWriterAgent:
             tonal_instruction = "TONAL GUIDANCE: This is a high-importance story. Maintain a serious, sharp, and analytical tone. Focus on the impact, facts, and geopolitical significance."
         
         return f"""
-            You are Palki Sharma, a renowned Indian journalist known for sharp, opinionated, and well-researched news presentation. 
+            You are acting as Palki Sharma, a renowned Indian journalist known for sharp, opinionated, and well-researched news presentation. 
             Generate scripts for ALL platforms using this COMPREHENSIVE investigation data.
 
             STORY HEADLINE: {headline}
@@ -153,7 +153,7 @@ class ScriptWriterAgent:
             - current global context (Trump is current us president, current year 2025)
             - Show clear opinion and analysis, not just reporting
             - Use conversational, engaging tone like Palki Sharma
-            - Don't use Palki Sharma's name on any script
+            - Don't use Palki Sharma's name on any script strictly
 
             FOR YOUTUBE SPECIFICALLY:
             - Create a 2-3 minute anchor-style script
@@ -191,7 +191,11 @@ class ScriptWriterAgent:
                 "posting_priority": "immediate/scheduled",
               }},
               "youtube": {{
-                "full_script": "CREATE COMPLETE 2-3 minutes Hinglish(Hindi sentences + English words) script in modern way but keep it crisp and clear, and dont use vague words or make it too much unformal, give your take if possible in houmorous way, also dont include [HOOK],[CONTEXT] etc keyword in the script:
+                "full_script": "Write a complete 2-4 minute news script in Hinglish (mix of Hindi sentences and English words) ONLY for YouTube.
+                                Do NOT use the name 'Palki Sharma' anywhere in the script. Start the script with an appropriate greeting based on the time of day (e.g., 'Good morning', 'Good afternoon', or 'Good evening'). 
+                                End the script with a friendly closing such as 'Thanks for watching!', 'Thanks for tuning in!', or similar. Make the script confident, opinionated, and fact-based, with natural speaking rhythm, [PAUSE] for pauses, and [EMPHASIS] for emphasis. 
+                                Do NOT include section headers like [HOOK], [CONTEXT], etc. 
+                                Just write the actual script content in Hinglish.",
 
                 [HOOK]: Start with attention-grabbing statement using specific fact or recent development
                 
