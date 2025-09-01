@@ -81,11 +81,13 @@ class SocialMediaManagerAgent:
                 print(f"Duplicate media URL detected: {media_url}. Skipping.")
                 return
             
-            is_first_image_claim = resource_type == "image" and not request.get("headline_applied", False)
+            is_first_media_claim = (resource_type in ["image", "video"]) and not request.get("headline_applied", False)
 
-            if is_first_image_claim:
+            if is_first_media_claim:
                 print("This is the first image to be processed. Applying headline overlay...")
                 
+                background_for_headline = media_url if resource_type == "image" else "URL_TO_A_DEFAULT_BACKGROUND_IMAGE"
+
                 processed_url = await self.image_gen.apply_headline_to_image(
                     image_path_or_url=media_url,
                     story_id=story_id,
@@ -96,6 +98,9 @@ class SocialMediaManagerAgent:
                 )
 
                 final_url_to_add = processed_url or media_url
+
+                if resource_type == "video":
+                    self.approval_queue.update_media(story_id, platform, "videos", media_url)
             
                 self.approval_queue.set_processed_first_image(story_id, platform, final_url_to_add)
                 print(f"✅ First image processed and PREPENDED for {platform}/{story_id}.")

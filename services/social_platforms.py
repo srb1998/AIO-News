@@ -108,7 +108,7 @@ class InstagramService:
                 data["image_url"] = media_url
             elif media_type == "VIDEO":
                 data["video_url"] = media_url
-                data["media_type"] = "VIDEO"
+                data["media_type"] = "REELS"
             
             print(f"🔄 Creating Instagram media container with caption: {bool(caption)}")
             
