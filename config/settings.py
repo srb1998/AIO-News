@@ -58,6 +58,18 @@ class Settings:
                 "reliability": 9
             },
             {
+                "name": "New Scientist - Magazine",
+                "url": "https://www.newscientist.com/feed/home/?cmpid=RSS%7CNSNS-Home",
+                "category": "science",
+                "reliability": 9
+            },
+            {
+                "name": "Live Science",
+                "url": "https://www.livescience.com/feeds.xml",
+                "category": "science",
+                "reliability": 9
+            },
+            {
                 "name": "Times of India",
                 "url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
                 "category": "general", 
@@ -84,13 +96,13 @@ class Settings:
 
         # Workflow Timing
         self.WORKFLOW_TIMING = {
-            "daily_workflow_interval": 3 * 60 * 60,  # 3 hours in seconds
+            "daily_workflow_interval": 1 * 60 * 60,  # 1 hour in seconds
             "breaking_news_check_interval": 30 * 60,  # 30 minutes for breaking news
             "service_status_check_interval": 5 * 60,  # 5 minutes for status updates
             "posting_scheduler_interval_seconds": 2 * 60, # Check for approved posts every 2 minutes
             "min_posting_delay_seconds": 10 * 60, # Minimum 10 minutes between posts
             "max_posting_delay_seconds": 25 * 60,
-            "hitl_selection_timeout_seconds": 100 # 5 min timeout for HITL selection
+            "hitl_selection_timeout_seconds": 180 # 3 min timeout for HITL selection
         }
 
         # Telegram Configuration (for Phase 2)

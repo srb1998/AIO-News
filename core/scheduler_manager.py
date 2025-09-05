@@ -1,15 +1,11 @@
-# core/scheduler_manager.py
-
 import json
 import os
 from datetime import datetime
 from pytz import timezone, all_timezones
-from filelock import FileLock
 
 class SchedulerManager:
     def __init__(self, config_file='data/scheduler_config.json'):
         self.config_file = config_file
-        self.lock = FileLock(f"{self.config_file}.lock")
         self.default_config = {
             "run_interval_seconds": 3 * 3600,  
             "exclusion_start_ist": "00:00",
@@ -21,24 +17,22 @@ class SchedulerManager:
     def _load_config(self) -> dict:
         """Loads the configuration from the file, creating it if it doesn't exist."""
         os.makedirs(os.path.dirname(self.config_file), exist_ok=True)
-        with self.lock:
-            if not os.path.exists(self.config_file):
-                with open(self.config_file, 'w') as f:
-                    json.dump(self.default_config, f, indent=2)
+        if not os.path.exists(self.config_file):
+            with open(self.config_file, 'w') as f:
+                json.dump(self.default_config, f, indent=2)
+            return self.default_config.copy()
+        
+        with open(self.config_file, 'r') as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                print("⚠️ Warning: scheduler_config.json is corrupted. Using default settings.")
                 return self.default_config.copy()
-            
-            with open(self.config_file, 'r') as f:
-                try:
-                    return json.load(f)
-                except json.JSONDecodeError:
-                    print("⚠️ Warning: scheduler_config.json is corrupted. Using default settings.")
-                    return self.default_config.copy()
 
     def _save_config(self):
         """Saves the current in-memory config to the file."""
-        with self.lock:
-            with open(self.config_file, 'w') as f:
-                json.dump(self.config, f, indent=2)
+        with open(self.config_file, 'w') as f:
+            json.dump(self.config, f, indent=2)
 
     def get_current_settings(self) -> str:
         """Returns a human-readable string of the current settings."""

@@ -74,7 +74,7 @@ class ManagerAgent:
             # --- GATE 1: IMPROVED STORY SELECTION WITH PRE-FILTERING ---
             print("\n🔄 Step 1: News Hunter - Gathering and filtering articles...")
             hunter_result = await self.agents["news_hunter"].hunt_daily_news(
-                max_articles_to_fetch=50, 
+                max_articles_to_fetch=70, 
                 top_n_to_process=12  # Process more to ensure we get good variety
             )
             final_headlines = hunter_result.get("top_headlines", [])
