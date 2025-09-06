@@ -169,11 +169,11 @@ class ScriptWriterAgent:
             - Create engaging story content that works as standalone post
             - Use specific facts to make it informative
             - Include clear takeaway message
+            - Use English language only
             
             FOR TWITTER:
-            - Create content with specific information
-            - Include key statistics or quotes
-            - Make it shareable with clear hook
+            - Create headline content with specific information and emojis
+            - Use English language only
 
             Respond with VALID JSON in this exact format:
 
