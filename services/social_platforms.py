@@ -289,14 +289,109 @@ class InstagramService:
             "last_reset": self.last_reset.isoformat()
         }
 
+class TwitterService:
+    def __init__(self):
+        self.api_key = os.getenv("TWITTER_API_KEY")
+        self.api_secret = os.getenv("TWITTER_API_SECRET")
+        self.access_token = os.getenv("TWITTER_ACCESS_TOKEN")
+        self.access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
+        
+        if not all([self.api_key, self.api_secret, self.access_token, self.access_token_secret]):
+            print("⚠️ Twitter credentials not fully configured.")
+            self.client = None
+        else:
+            self.client = tweepy.Client(
+                consumer_key=self.api_key,
+                consumer_secret=self.api_secret,
+                access_token=self.access_token,
+                access_token_secret=self.access_token_secret
+            )
+            # V1.1 API is needed for media uploads
+            auth = tweepy.OAuth1UserHandler(
+                consumer_key=self.api_key,
+                consumer_secret=self.api_secret,
+                access_token=self.access_token,
+                access_token_secret=self.access_token_secret
+            )
+            self.api_v1 = tweepy.API(auth)
+            
+    async def _upload_media(self, media_url: str) -> Optional[str]:
+        """Downloads media from a URL and uploads it to Twitter."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(media_url) as response:
+                    if response.status != 200:
+                        print(f"❌ Failed to download media from {media_url}")
+                        return None
+                    
+                    media_data = await response.read()
+                    
+                    # Tweepy's media upload is synchronous, so we run it in an executor
+                    loop = asyncio.get_event_loop()
+                    # The filename is required for tweepy to determine the media type
+                    filename = media_url.split('/')[-1].split('?')[0]
+                    media = await loop.run_in_executor(
+                        None,
+                        lambda: self.api_v1.media_upload(filename=filename, file=media_data)
+                    )
+                    return media.media_id_string
+        except Exception as e:
+            print(f"❌ Error uploading media to Twitter: {e}")
+            return None
+
+    async def post_tweet(self, images: List[str], videos: List[str], content: str) -> bool:
+        """Posts a tweet with optional media."""
+        if not self.client:
+            print("❌ Cannot post to Twitter: client not authenticated.")
+            return False
+            
+        media_ids = []
+        # Twitter allows up to 4 images OR 1 video per tweet
+        all_media = images + videos
+        
+        if videos:
+            # If there's a video, only upload the first one and ignore images
+            print("🐦 Twitter post strategy: 1 video")
+            video_id = await self._upload_media(videos[0])
+            if video_id:
+                media_ids.append(video_id)
+        elif images:
+            # If there are images, upload up to 4
+            print(f"🐦 Twitter post strategy: {len(images[:4])} images")
+            for image_url in images[:4]:
+                image_id = await self._upload_media(image_url)
+                if image_id:
+                    media_ids.append(image_id)
+        
+        try:
+            print(f"🐦 Posting tweet with {len(media_ids)} media items.")
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: self.client.create_tweet(text=content, media_ids=media_ids if media_ids else None)
+            )
+            print("✅ Successfully posted tweet.")
+            return True
+        except Exception as e:
+            print(f"❌ Failed to post tweet: {e}")
+            return False
+
+    def get_status(self) -> Dict:
+        """Get current service status"""
+        return {
+            "service": "twitter",
+            "authenticated": bool(self.client),
+        }
 
 class SocialPlatformManager:
     """Manager class for all social platforms"""
     
     def __init__(self):
         self.instagram = InstagramService()
+        self.twitter = TwitterService()
         self.platforms = {
-            "instagram": self.instagram
+            "instagram": self.instagram,
+            "twitter": self.twitter
         }
         # Future platforms can be added here
         # self.twitter = TwitterService()
@@ -313,7 +408,8 @@ class SocialPlatformManager:
         try:
             if platform == "instagram":
                 return await service.post_story_content(images, videos, content)
-            # Add other platforms here
+            elif platform == "twitter":
+                return await service.post_tweet(images, videos, content)
             else:
                 print(f"❌ Posting logic for {platform} not implemented")
                 return False
