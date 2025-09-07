@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Union
 from datetime import datetime, timedelta
 import json
 from config.settings import settings
+import tweepy
 
 class InstagramService:
     def __init__(self):
