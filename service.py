@@ -120,7 +120,9 @@ class NewsAgencyService:
             await asyncio.sleep(self.breaking_news_interval)
 
     async def _posting_scheduler_loop(self):
-        """The 'Pacer'. Checks for approved posts and publishes them one by one at a natural pace."""
+        """
+        The 'Pacer'. Now the single source of truth for posting.
+        """
         print("✍️ Posting Scheduler Loop: Started.")
         while self.is_running:
             try:
@@ -128,20 +130,20 @@ class NewsAgencyService:
                 if next_post:
                     story_id = next_post['story_id']
                     platform = next_post['platform']
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] SCHEDULER: Found approved post to publish: {story_id}/{platform}.")
-                    
-                    # The SocialMediaManager already contains the logic to post and update status
-                    await self.social_media_manager._handle_approval(story_id, platform)
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] SCHEDULER: Found approved post: {story_id}/{platform}.")
+                
+                    self.approval_queue.update_status(story_id, platform, "POSTING")
+
+                    await self.social_media_manager._process_approved_request(story_id, platform)
                     
                     delay = random.randint(self.min_posting_delay, self.max_posting_delay)
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] SCHEDULER: Post published. Waiting for {delay / 60:.1f} minutes before checking for the next one.")
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] SCHEDULER: Cycle complete. Waiting for {delay / 60:.1f} minutes before checking for the next approved post.")
                     await asyncio.sleep(delay)
                 else:
-                    # If no posts are waiting, just check again after the standard interval
                     await asyncio.sleep(self.posting_scheduler_interval)
             except Exception as e:
                 print(f"❌ ERROR in Posting Scheduler Loop: {e}")
-                await asyncio.sleep(60) # Wait a minute before retrying after an error
+                await asyncio.sleep(60)
 
     async def _check_timeouts_loop(self):
         """Periodically check for PENDING approvals that have timed out."""

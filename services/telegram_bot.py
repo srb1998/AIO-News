@@ -218,24 +218,34 @@ class TelegramNotifier:
         Sends a clean, numbered list of headlines, followed by a grid of selection buttons.
         This version correctly escapes all MarkdownV2 special characters.
         """
-        if not headlines: return None
+        if not any(headlines_by_category.values()): return None
 
-        message_text = "📢 **Top Headlines Found\\!**\n\nPlease select stories to investigate:\n\n"
+        message_text = "📢 **Top Headlines Found\\!**\n\nPlease select stories to investigate:\n"
         story_map = {}
-        for i, story in enumerate(headlines, 1):
-            story_hash = str(abs(hash(story.get('original_title', story.get('headline')))))
-            story_map[i] = story_hash
+        story_counter = 1
+
+        # MODIFIED: Iterate through the dictionary to build the categorized message
+        for category, stories in headlines_by_category.items():
+            if not stories: continue
             
-            escaped_headline = self._escape_markdown(story['headline'])
+            # Add category header
+            message_text += f"\n*{self._escape_markdown(category)}*\n"
             
-            message_text += f"*{i}\\.* {escaped_headline}\n"
+            for story in stories:
+                story_hash = str(abs(hash(story.get('original_title', story.get('headline')))))
+                story_map[story_counter] = story_hash
+                
+                escaped_headline = self._escape_markdown(story['headline'])
+                message_text += f"*{story_counter}\\.* {escaped_headline}\n"
+                story_counter += 1
         
         await self._send_message(self.chat_id, message_text)
 
-        # The button grid logic is fine, but we'll escape its title for safety too.
+        # Build the button grid based on the total number of stories
+        total_stories = story_counter - 1
         rows = []
         buttons = []
-        for i in range(1, len(headlines) + 1):
+        for i in range(1, total_stories + 1):
             story_hash = story_map[i]
             buttons.append({"text": f"✅ {i}", "callback_data": f"select_{workflow_id}_{story_hash}"})
             if len(buttons) == 5:
@@ -246,11 +256,9 @@ class TelegramNotifier:
         rows.append([{"text": "🚀 Select All", "callback_data": f"select_{workflow_id}_all"}])
 
         reply_markup = {"inline_keyboard": rows}
-        # Escape the title of the second message as well for robustness
         button_grid_title = self._escape_markdown("Select stories for Gate 2:")
-        button_grid_title = f"*{button_grid_title}*"
         
-        return await self._send_message(self.chat_id, button_grid_title, reply_markup)
+        return await self._send_message(self.chat_id, f"*{button_grid_title}*", reply_markup)
 
     async def send_workflow_summary_notification(self, workflow_id: str, summary_url: str):
         """

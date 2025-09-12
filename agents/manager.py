@@ -67,36 +67,41 @@ class ManagerAgent:
             "total_tokens": 0
         }
 
-        final_headlines, selected_stories, investigation_reports, platform_scripts = [], [], [], []
+        selected_stories, investigation_reports, platform_scripts = [], [], []
         hunter_result, detective_result, script_result, social_media_result = {}, {}, {}, {}
         
         try:
-            # --- GATE 1: IMPROVED STORY SELECTION WITH PRE-FILTERING ---
-            print("\n🔄 Step 1: News Hunter - Gathering and filtering articles...")
+            # --- GATE 1: STORY SELECTION WITH CATEGORIES ---
+            print("\n🔄 Step 1: News Hunter - Gathering, filtering, and categorizing articles...")
             hunter_result = await self.agents["news_hunter"].hunt_daily_news(
                 max_articles_to_fetch=70, 
-                top_n_to_process=12  # Process more to ensure we get good variety
+                top_n_to_process=15
             )
-            final_headlines = hunter_result.get("top_headlines", [])
+            # CHANGE 1: Receive the categorized dictionary from the hunter.
+            final_headlines_by_category = hunter_result.get("top_headlines", {})
             
-            # Enhanced logging for debugging
+            # CHANGE 2: Create a flat list from the dictionary for internal processing.
+            final_headlines_flat_list = [
+                story for category_stories in final_headlines_by_category.values() for story in category_stories
+            ]
+
             articles_fetched = hunter_result.get("articles_fetched", 0)
             articles_after_filtering = hunter_result.get("articles_after_filtering", 0)
-            filtered_out = articles_fetched - articles_after_filtering
             
-            if not final_headlines:
+            # CHANGE 3: The "no news" check now uses the flat list.
+            if not final_headlines_flat_list:
                 workflow_result["steps"].append({
                     "step": 1, "agent": "news_hunter", "status": "no_new_content",
                     "articles_fetched": articles_fetched,
                     "articles_filtered": articles_after_filtering,
-                    "message": "No new unique headlines found after filtering"
+                    "message": "No new unique headlines found after filtering and categorization."
                 })
-                print("GATE 1: No new unique headlines found. Workflow ending.")
+                print("GATE 1: No stories met the criteria. Workflow ending.")
                 return workflow_result
 
-            # Store stories for user selection with better mapping
+            # Store stories for user selection using the flat list.
             story_mapping = {}
-            for headline in final_headlines:
+            for headline in final_headlines_flat_list:
                 story_hash = str(abs(hash(headline.get('original_title', headline.get('headline')))))
                 story_mapping[story_hash] = headline
             
@@ -105,12 +110,10 @@ class ManagerAgent:
                 'selected': []
             }
 
-            # Send selection notification
-            display_headlines = final_headlines[:10]
+            # CHANGE 4: Send the original categorized dictionary to the Telegram bot for display.
             timeout = settings.WORKFLOW_TIMING["hitl_selection_timeout_seconds"]
-            print(f"GATE 1: Presenting {len(display_headlines)} headlines for selection. Waiting {timeout}s...")
-            
-            await self.telegram_bot.send_selection_notification(display_headlines, workflow_id)
+            print(f"GATE 1: Presenting {len(final_headlines_flat_list)} categorized headlines for selection. Waiting {timeout}s...")
+            await self.telegram_bot.send_selection_notification(final_headlines_by_category, workflow_id)
             await asyncio.sleep(timeout)
             
             selected_stories = self.pending_workflows[workflow_id].get('selected', [])
@@ -118,7 +121,7 @@ class ManagerAgent:
             if not selected_stories:
                 workflow_result["steps"].append({
                     "step": 1, "agent": "user_selection", "status": "no_selection",
-                    "headlines_presented": len(display_headlines)
+                    "headlines_presented": len(final_headlines_flat_list)
                 })
                 print("GATE 1: No stories selected by user. Workflow ending.")
                 return workflow_result

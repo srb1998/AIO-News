@@ -55,72 +55,73 @@ class NewsHunterAgent:
                 seen_titles.add(title)
         print(f"Found {len(unique_ranked_articles)} unique articles after in-batch deduplication.")
 
-        print("⚖️ Applying Strict Dual-Funnel Selection...")
+        print("⚖️ Applying Category-Based Selection...")
 
-        # Funnel 1: Top 5 by Importance
+        categories_to_fill = {
+            "🇮🇳 India": 3,
+            "🌍 World": 3,
+            "🔬 SciTech": 3,
+            "🌳 Bizarre & Amazing": 3
+        }
+        
+        selected_articles_by_category = {cat: [] for cat in categories_to_fill.keys()}
+        
+        # Sort all articles by importance to ensure we consider the best ones first
         unique_ranked_articles.sort(key=lambda x: x.get('importance_score', 0), reverse=True)
-        important_stories = unique_ranked_articles[:5]
-        print(f"✅ Selected {len(important_stories)} top stories for the 'Front Page'.")
-
-        # Create a set of selected titles to avoid duplicates
-        selected_titles = {story['title'] for story in important_stories}
-
-        # Funnel 2: Top 5 by Curiosity from the remaining pool
-        remaining_articles = [story for story in unique_ranked_articles if story['title'] not in selected_titles]
         
-        wow_factor_threshold = 7.0
-        high_wow_stories = [
-            story for story in remaining_articles 
-            if story.get('wow_factor_score', 0) >= wow_factor_threshold
-        ]
-        print(f"🔍 Applying 'Wow Factor' Quality Gate (Score >= {wow_factor_threshold})... Found {len(high_wow_stories)} qualifying stories.")
+        # Fill each category with its top stories
+        for article in unique_ranked_articles:
+            category = article.get("category")
+            if category in categories_to_fill and len(selected_articles_by_category[category]) < categories_to_fill[category]:
+                selected_articles_by_category[category].append(article)
 
-        high_wow_stories.sort(key=lambda x: x.get('wow_factor_score', 0), reverse=True)
-        wow_stories = high_wow_stories[:5]
+        # Create the final flat list of articles to be processed
+        promising_articles = []
+        for cat_name, articles in selected_articles_by_category.items():
+            promising_articles.extend(articles)
+            print(f"✅ Selected {len(articles)} stories for category '{cat_name}'.")
+            
+        print(f"📰 Final selection: {len(promising_articles)} categorized stories for Creative Desk.")
+        # END OF MODIFIED LOGIC
 
-        # Combine the two funnels
-        promising_articles = important_stories + wow_stories
-        print(f"📰 Final selection: {len(promising_articles)} diverse stories for Creative Desk ({len(important_stories)} important + {len(wow_stories)} wow).")
-
-        # 4. STAGE 2 CREATIVE DESK: Process the selected diverse articles
+        # 4. STAGE 2 CREATIVE DESK: Process the selected categorized articles
         if not promising_articles:
-             return {"success": True, "message": "No stories met the selection criteria.", "top_headlines": []}
-        
+             return {"success": True, "message": "No stories met the selection criteria.", "top_headlines": {}}
+
         creative_result = await self._stage2_creative_desk(promising_articles)
         if not creative_result.get("success") or not creative_result.get("headlines"):
             return {"success": False, "error": "Creative Desk stage failed."}
 
-        final_headlines = []
+        # MODIFIED: Re-assemble the categorized dictionary after creative desk processing
+        final_headlines_by_category = {cat: [] for cat in categories_to_fill.keys()}
         creative_headlines = creative_result.get("headlines", [])
-
-        # Create a mapping from original index to the article data
         article_map = {i: article for i, article in enumerate(promising_articles, 1)}
 
         for creative_headline in creative_headlines:
             original_index = creative_headline.pop("original_index", None)
             if original_index and original_index in article_map:
                 original_article = article_map[original_index]
-                # Merge the new creative data with the original article data (including scores)
                 original_article.update(creative_headline)
-                final_headlines.append(original_article)
+                
+                category = original_article.get("category")
+                if category in final_headlines_by_category:
+                    final_headlines_by_category[category].append(original_article)
 
-        # 5. CACHE FINAL RESULTS: Add processed stories to cache for future filtering
-        await self._cache_final_results(final_headlines)
+        # 5. CACHE FINAL RESULTS: Flatten the dict to cache all stories
+        all_final_headlines = [story for sublist in final_headlines_by_category.values() for story in sublist]
+        await self._cache_final_results(all_final_headlines)
 
-        # Calculate total cost
         total_token_usage = {
             "tokens": triage_result.get("token_usage", {}).get("tokens", 0) + creative_result.get("token_usage", {}).get("tokens", 0),
             "cost": triage_result.get("token_usage", {}).get("cost", 0) + creative_result.get("token_usage", {}).get("cost", 0)
         }
 
-        # Sort final list by importance for presentation, but it contains the full mix
-        final_headlines.sort(key=lambda x: x.get("importance_score", 0), reverse=True)
         return {
             "success": True,
             "articles_fetched": len(raw_articles),
             "articles_after_filtering": len(unique_articles),
-            "articles_processed": len(promising_articles),
-            "top_headlines": final_headlines,
+            "articles_processed": len(all_final_headlines),
+            "top_headlines": final_headlines_by_category,
             "token_usage": total_token_usage,
         }
 
@@ -183,37 +184,39 @@ class NewsHunterAgent:
             await asyncio.sleep(0.02)
 
     async def _stage1_triage(self, articles: List[Dict]) -> Dict[str, Any]:
-        """Fast ranking of unique articles"""
+        """Fast ranking, scoring, AND categorization of unique articles."""
         articles_text = ""
         for i, article in enumerate(articles, 1):
             articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
-            You are the chief editor of a digital news magazine. Your task is to evaluate articles for two separate sections: The Front Page (Importance) and The Features Section (Wow Factor). Provide two separate scores for each article.
+            You are a Section Editor for a digital news magazine. Your task is to evaluate, score, and CATEGORIZE each article.
 
-            **1. `importance_score` (1-10): Is this "Front Page" material? Is it need-to-know?**
-            - HIGH (8-10): Major policy changes (app bans), significant geopolitical events involving India, scientific breakthroughs with huge implications, medical miracles.
-            - LOW (1-4): Routine politics, minor incidents, celebrity gossip, predictable sports results.
+            **Categories:**
+            - "🇮🇳 India": Primary impact/focus is within India (politics, local business, domestic events).
+            - "🌍 World": Significant geopolitical news, major events in other countries, conflicts.
+            - "🔬 SciTech": Science, technology, space, and futuristic discoveries.
+            - "🌳 Bizarre & Amazing": Unique, awe-inspiring, strange, or heartwarming stories. This is for the "wow factor".
 
-            **2. `wow_factor_score` (1-10): Is this "Features Section" material? Is it surprising, unique, omg type or awe-inspiring?**
-            - HIGH (8-10): The truly unbelievable. Bizarre natural phenomena, awe-inspiring achievements, heartwarming animal stories, mind-bending discoveries, wholesome moments.
-            
-            **IMPORTANT ANTI-EXAMPLES for "Wow Factor":**
-            - The following are NOT high "wow_factor_score" stories: routine political debates, corporate earnings reports, murder cases, standard international relations updates. These are often important, but not "wow" or awe-inspiring.
+            **Scoring:**
+            1. `importance_score` (1-10): How impactful and need-to-know is this?
+            2. `wow_factor_score` (1-10): How surprising, unique, or awe-inspiring is this?
 
-            **Scoring Examples:**
-            - "India successfully tests Agni-5 missile" -> importance_score: 9.5, wow_factor_score: 5.0
-            - "Ujjain woman declared dead comes back to life" -> importance_score: 8.0, wow_factor_score: 9.8
-            - "Scientists discover a planet made of diamond" -> importance_score: 6.5, wow_factor_score: 9.5
-            - "Rare deep-sea squid filmed for the first time" -> importance_score: 2.0, wow_factor_score: 9.2
+            **Task:**
+            For each article below, provide its category, importance_score, and wow_factor_score.
 
             Articles:\n{articles_text}
 
-            Return ONLY valid JSON - score ALL articles:
-            {{"ranked_articles": [{{"index": 1, "importance_score": 9.2, "wow_factor_score": 4.5}}, {{"index": 2, "importance_score": 2.1, "wow_factor_score": 8.9}}]}}
+            Return ONLY valid JSON - score and categorize ALL articles:
+            {{
+                "ranked_articles": [
+                    {{"index": 1, "category": "🇮🇳 India", "importance_score": 9.2, "wow_factor_score": 4.5}},
+                    {{"index": 2, "category": "🌳 Bizarre & Amazing", "importance_score": 2.1, "wow_factor_score": 8.9}}
+                ]
+            }}
             """
         
-        print("STAGE 1: TRIAGE - Ranking unique articles...")
+        print("STAGE 1: TRIAGE - Applying 'Section Editor' model (Category, Importance, Wow Factor)...")
         response = await llm_client.smart_generate(prompt, max_tokens=25000, priority="normal")
 
         if "error" in response: return {"success": False, "error": response["error"]}
@@ -227,6 +230,7 @@ class NewsHunterAgent:
                 index = item.get("index")
                 if index and 1 <= index <= len(articles):
                     article = articles[index - 1]
+                    article['category'] = item.get("category", "🌍 World")
                     article['importance_score'] = item.get("importance_score", 0)
                     article['wow_factor_score'] = item.get("wow_factor_score", 0)
                     ranked_articles.append(article)
