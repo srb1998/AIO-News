@@ -80,6 +80,7 @@ class ManagerAgent:
             # CHANGE 1: Receive the categorized dictionary from the hunter.
             final_headlines_by_category = hunter_result.get("top_headlines", {})
             
+            print(f"final_headlines_by_category {final_headlines_by_category}")
             # CHANGE 2: Create a flat list from the dictionary for internal processing.
             final_headlines_flat_list = [
                 story for category_stories in final_headlines_by_category.values() for story in category_stories
