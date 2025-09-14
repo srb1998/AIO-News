@@ -8,7 +8,7 @@ class SchedulerManager:
     def __init__(self, config_file='data/scheduler_config.json'):
         self.config_file = config_file
         self.default_config = {
-            "run_interval_seconds": 3 * 3600,  
+            "run_interval_seconds": 1 * 3600,  
             "exclusion_start_ist": "00:00",
             "exclusion_end_ist": "08:00",
             "is_enabled": True

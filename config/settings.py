@@ -70,6 +70,18 @@ class Settings:
                 "reliability": 9
             },
             {
+                "name": "Live Mint Science",
+                "url": "https://www.livemint.com/rss/science",
+                "category": "science",
+                "reliability": 9
+            },
+            {
+                "name": "Live Mint News",
+                "url": "http://livemint.com/rss/news",
+                "category": "general", 
+                "reliability": 9
+            },
+            {
                 "name": "Times of India",
                 "url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
                 "category": "general", 
