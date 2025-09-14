@@ -213,20 +213,24 @@ class TelegramNotifier:
         else:
             await self._send_message(chat_id, "Please upload your media files or type `/done` to finish, `/cancel` to abort.", None)
 
-    async def send_selection_notification(self, headlines: List[Dict[str, Any]], workflow_id: str) -> Optional[int]:
+    async def send_selection_notification(self, headlines_by_category: Dict[str, List[Dict[str, Any]]], workflow_id: str) -> Optional[int]:
         """
-        Sends a clean, numbered list of headlines, followed by a grid of selection buttons.
-        This version correctly escapes all MarkdownV2 special characters.
+        Sends a categorized and numbered list of headlines for selection.
+        The parameter name and type hint have been corrected to match the new data structure.
         """
-        if not any(headlines_by_category.values()): return None
+        # This check now works correctly because the parameter name matches.
+        if not any(headlines_by_category.values()): 
+            print("⚠️ No headlines to send for selection.")
+            return None
 
         message_text = "📢 **Top Headlines Found\\!**\n\nPlease select stories to investigate:\n"
         story_map = {}
         story_counter = 1
 
-        # MODIFIED: Iterate through the dictionary to build the categorized message
+        # Iterate through the dictionary to build the categorized message
         for category, stories in headlines_by_category.items():
-            if not stories: continue
+            if not stories: 
+                continue
             
             # Add category header
             message_text += f"\n*{self._escape_markdown(category)}*\n"
@@ -243,6 +247,8 @@ class TelegramNotifier:
 
         # Build the button grid based on the total number of stories
         total_stories = story_counter - 1
+        if total_stories <= 0:
+            return
         rows = []
         buttons = []
         for i in range(1, total_stories + 1):
