@@ -28,23 +28,25 @@ class NewsHunterAgent:
         raw_articles = self.news_sources.fetch_all_sources(max_articles=max_articles_to_fetch)
         print(f"📡 Fetched {len(raw_articles)} raw articles.")
         if not raw_articles:
-            return {"success": True, "message": "No raw articles found.", "top_headlines": []}
+            # FIX: Return an empty dictionary for top_headlines to match the new structure
+            return {"success": True, "message": "No raw articles found.", "top_headlines": {}}
 
-        # 2. PRE-FILTER: Remove exact duplicates and cached stories BEFORE LLM processing
+        # 2. PRE-FILTER
         unique_articles = await self._pre_filter_articles(raw_articles)
         print(f"🔍 After pre-filtering: {len(unique_articles)} unique articles remaining.")
         
         if not unique_articles:
-            return {"success": True, "message": "All articles were duplicates or cached.", "top_headlines": []}
+            # FIX: Return an empty dictionary for top_headlines
+            return {"success": True, "message": "All articles were duplicates or cached.", "top_headlines": {}}
 
-        # 3. STAGE 1 TRIAGE: Only process truly unique articles
+        # 3. STAGE 1 TRIAGE: Assign scores AND categories
         triage_result = await self._stage1_triage(unique_articles)
         if not triage_result.get("success") or not triage_result.get("ranked_articles"):
             return {"success": False, "error": "Triage stage failed or returned no articles."}
         
         ranked_articles = triage_result.get("ranked_articles", [])
 
-        # This removes duplicates from the current run before selection.
+        # In-batch de-duplication
         print(f"Deduplicating current batch of {len(ranked_articles)} articles...")
         seen_titles = set()
         unique_ranked_articles = []
@@ -55,8 +57,9 @@ class NewsHunterAgent:
                 seen_titles.add(title)
         print(f"Found {len(unique_ranked_articles)} unique articles after in-batch deduplication.")
 
+        # CATEGORY-BASED SELECTION LOGIC
         print("⚖️ Applying Category-Based Selection...")
-
+        
         categories_to_fill = {
             "🇮🇳 India": 3,
             "🌍 World": 3,
@@ -66,25 +69,21 @@ class NewsHunterAgent:
         
         selected_articles_by_category = {cat: [] for cat in categories_to_fill.keys()}
         
-        # Sort all articles by importance to ensure we consider the best ones first
         unique_ranked_articles.sort(key=lambda x: x.get('importance_score', 0), reverse=True)
         
-        # Fill each category with its top stories
         for article in unique_ranked_articles:
             category = article.get("category")
             if category in categories_to_fill and len(selected_articles_by_category[category]) < categories_to_fill[category]:
                 selected_articles_by_category[category].append(article)
 
-        # Create the final flat list of articles to be processed
         promising_articles = []
         for cat_name, articles in selected_articles_by_category.items():
             promising_articles.extend(articles)
             print(f"✅ Selected {len(articles)} stories for category '{cat_name}'.")
             
         print(f"📰 Final selection: {len(promising_articles)} categorized stories for Creative Desk.")
-        # END OF MODIFIED LOGIC
 
-        # 4. STAGE 2 CREATIVE DESK: Process the selected categorized articles
+        # 4. STAGE 2 CREATIVE DESK
         if not promising_articles:
              return {"success": True, "message": "No stories met the selection criteria.", "top_headlines": {}}
 
@@ -92,7 +91,7 @@ class NewsHunterAgent:
         if not creative_result.get("success") or not creative_result.get("headlines"):
             return {"success": False, "error": "Creative Desk stage failed."}
 
-        # MODIFIED: Re-assemble the categorized dictionary after creative desk processing
+        # Re-assemble the categorized dictionary after creative desk processing
         final_headlines_by_category = {cat: [] for cat in categories_to_fill.keys()}
         creative_headlines = creative_result.get("headlines", [])
         article_map = {i: article for i, article in enumerate(promising_articles, 1)}
@@ -107,7 +106,7 @@ class NewsHunterAgent:
                 if category in final_headlines_by_category:
                     final_headlines_by_category[category].append(original_article)
 
-        # 5. CACHE FINAL RESULTS: Flatten the dict to cache all stories
+        # 5. CACHE FINAL RESULTS
         all_final_headlines = [story for sublist in final_headlines_by_category.values() for story in sublist]
         await self._cache_final_results(all_final_headlines)
 
