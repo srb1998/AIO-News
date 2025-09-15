@@ -197,7 +197,7 @@ class ManagerAgent:
                 },
                 # Data for potential reprocessing or analysis
                 "generated_content": {
-                    "headlines": final_headlines,
+                    "headlines": final_headlines_flat_list,
                     "investigation_reports": investigation_reports,
                     "platform_scripts": platform_scripts
                 },
