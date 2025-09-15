@@ -53,6 +53,9 @@ class NewsHunterAgent:
         for article in ranked_articles:
             title = article.get('title', '').strip()
             if title not in seen_titles:
+                importance = article.get('importance_score', 0)
+                wow = article.get('wow_factor_score', 0)
+                article['blended_score'] = (importance * 0.4) + (wow * 0.6)
                 unique_ranked_articles.append(article)
                 seen_titles.add(title)
         print(f"Found {len(unique_ranked_articles)} unique articles after in-batch deduplication.")
@@ -61,15 +64,15 @@ class NewsHunterAgent:
         print("⚖️ Applying Category-Based Selection...")
         
         categories_to_fill = {
-            "🇮🇳 India": 3,
-            "🌍 World": 3,
-            "🔬 SciTech": 3,
-            "🌳 Bizarre & Amazing": 3
+            "🇮🇳 India": 5,
+            "🌍 World": 5,
+            "🔬 SciTech": 5,
+            "🌳 Bizarre & Amazing": 5
         }
         
         selected_articles_by_category = {cat: [] for cat in categories_to_fill.keys()}
         
-        unique_ranked_articles.sort(key=lambda x: x.get('importance_score', 0), reverse=True)
+        unique_ranked_articles.sort(key=lambda x: x.get('blended_score', 0), reverse=True)
         
         for article in unique_ranked_articles:
             category = article.get("category")
@@ -189,31 +192,50 @@ class NewsHunterAgent:
             articles_text += f"Article {i}:\nTitle: {article['title']}\nDescription: {article['description'][:200]}..\n---\n"
         
         prompt = f"""
-            You are a Section Editor for a digital news magazine. Your task is to evaluate, score, and CATEGORIZE each article.
+        You are a journalist writing for a news service that values clarity and simplicity. Your goal is to write headlines that are direct, factual, and easy to understand in a single reading.
 
-            **Categories:**
-            - "🇮🇳 India": Primary impact/focus is within India (politics, local business, domestic events).
-            - "🌍 World": Significant geopolitical news, major events in other countries, conflicts.
-            - "🔬 SciTech": Science, technology, space, and futuristic discoveries.
-            - "🌳 Bizarre & Amazing": Unique, awe-inspiring, strange, or heartwarming stories. This is for the "wow factor".
+        **Your Task:**
+        For each article provided, write a headline that is a simple, complete English sentence.
 
-            **Scoring:**
-            1. `importance_score` (1-10): How impactful and need-to-know is this?
-            2. `wow_factor_score` (1-10): How surprising, unique, or awe-inspiring is this?
+        **Headline Style Rules (VERY IMPORTANT):**
+        1.  **Use Standard English:** Write a full sentence with a clear subject and verb.
+        2.  **Be Direct:** State the main fact of the story.
+        3.  **NO 'Headlinese':**
+            - Do NOT use colons to connect ideas (e.g., "Breakthrough in Healing: ...").
+            - Do NOT ask questions in the headline.
+            - Do NOT use overly dramatic or emotive words like 'Deadly', 'Crucial', 'Shocking'. Stick to facts.
+        4.  **Keep it Simple:** The headline should be understandable by everyone.
 
-            **Task:**
-            For each article below, provide its category, importance_score, and wow_factor_score.
+        **Example of a GOOD headline (Your goal):**
+        - "Scientists have created a 'bone glue' that can heal fractures in 3 minutes."
+        - "A US trade delegation will visit India tomorrow for negotiations."
+        - "A man died from a cardiac arrest just 10 minutes after texting his boss for sick leave."
 
-            Articles:\n{articles_text}
+        **Example of a BAD headline (What to AVOID):**
+        - "Breakthrough in Healing: Chinese Scientists Develop 3-Minute 'Bone Glue'"
+        - "India, US Set for Crucial Talks: Can a 'Reset' Bridge the Divide?"
 
-            Return ONLY valid JSON - score and categorize ALL articles:
-            {{
-                "ranked_articles": [
-                    {{"index": 1, "category": "🇮🇳 India", "importance_score": 9.2, "wow_factor_score": 4.5}},
-                    {{"index": 2, "category": "🌳 Bizarre & Amazing", "importance_score": 2.1, "wow_factor_score": 8.9}}
-                ]
-            }}
-            """
+        ---
+        Articles to process:
+        {articles_text}
+        ---
+
+        Return ONLY valid JSON. Ensure you include the `original_index` for each story exactly as it was provided.
+        {{
+            "top_headlines": [
+                {{
+                    "original_index": 1,
+                    "headline": "A simple, direct, and factual sentence describing the main news.",
+                    "subheadline": "A single, short, interesting detail or fact from the article.",
+                    "summary": "A 1-2 sentence summary written in simple, clear English.",
+                    "priority": 8,
+                    "original_title": "The Original Title",
+                    "source": "Source Name",
+                    "url": "URL"
+                }}
+            ]
+        }}
+        """
         
         print("STAGE 1: TRIAGE - Applying 'Section Editor' model (Category, Importance, Wow Factor)...")
         response = await llm_client.smart_generate(prompt, max_tokens=25000, priority="normal")
