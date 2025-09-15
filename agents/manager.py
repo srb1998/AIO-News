@@ -88,6 +88,7 @@ class ManagerAgent:
 
             articles_fetched = hunter_result.get("articles_fetched", 0)
             articles_after_filtering = hunter_result.get("articles_after_filtering", 0)
+            filtered_out = articles_fetched - articles_after_filtering
             
             # CHANGE 3: The "no news" check now uses the flat list.
             if not final_headlines_flat_list:
@@ -178,8 +179,8 @@ class ManagerAgent:
                     "filtering_efficiency": f"{(filtered_out/articles_fetched*100):.1f}%" if articles_fetched > 0 else "0%"
                 },
                 "content_stats": {
-                    "headlines_generated": len(final_headlines),
-                    "headlines_presented_to_user": len(display_headlines),
+                    "headlines_generated": len(final_headlines_flat_list),
+                    "headlines_presented_to_user": len(final_headlines_flat_list),
                     "stories_selected_by_user": len(selected_stories),
                     "stories_investigated": len(investigation_reports),
                     "script_packages_generated": len(platform_scripts)
