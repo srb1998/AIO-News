@@ -11,7 +11,7 @@ from core.news_sources import NewsSourceManager
 from core.semantic_cache import SemanticCache
 from core.story_cache import StoryCache
 
-class NewsHunterAgent:
+class NewsHunterAgent:  
     def __init__(self):
         self.news_sources = NewsSourceManager()
         self.semantic_cache = SemanticCache()
@@ -224,42 +224,48 @@ class NewsHunterAgent:
             articles_text += f"Article {i} (original_index: {i}):\nOriginal Title: {article['title']}\nSource: {article['source']}\nURL: {article['url']}\nDescription: {article.get('description', '')[:250]}...\n---\n"
 
         prompt = f"""
-        You are a journalist writing for a news service that values clarity and simplicity. Your goal is to write headlines that are direct, factual, and easy to understand in a single reading.
+        You are a lead editor for a popular online news platform. Your audience is smart, curious, and prefers news that is both engaging and easy to digest.
 
         **Your Task:**
-        For each article provided, write a headline that is a simple, complete English sentence.
+        For each article provided, write a compelling, clear, and concise headline. The goal is to make the reader curious without resorting to clickbait or confusing jargon.
 
-        **Headline Style Rules (VERY IMPORTANT):**
-        1.  **Use Standard English:** Write a full sentence with a clear subject and verb.
-        2.  **Be Direct:** State the main fact of the story.
-        3.  **NO 'Headlinese':**
-            - Do NOT use colons to connect ideas (e.g., "Breakthrough in Healing: ...").
-            - Do NOT ask questions in the headline.
-            - Do NOT use overly dramatic or emotive words like 'Deadly', 'Crucial', 'Shocking'. Stick to facts.
-        4.  **Keep it Simple:** The headline should be understandable by everyone.
-
-        **Example of a GOOD headline (Your goal):**
-        - "Scientists have created a 'bone glue' that can heal fractures in 3 minutes."
-        - "A US trade delegation will visit India tomorrow for negotiations."
-        - "A man died from a cardiac arrest just 10 minutes after texting his boss for sick leave."
-
-        **Example of a BAD headline (What to AVOID):**
-        - "Breakthrough in Healing: Chinese Scientists Develop 3-Minute 'Bone Glue'"
-        - "India, US Set for Crucial Talks: Can a 'Reset' Bridge the Divide?"
+        **Headline Style Guide:**
+        1.  **Focus on the Core Action:** Lead with the most interesting subject and a strong, active verb.
+        2.  **Highlight the 'So What?':** Emphasize the impact or the most surprising element. Why should the reader care?
+        3.  **Use Vivid Language:** Use clear, powerful verbs and specific nouns. Avoid generic or weak phrasing.
+        4.  **Use Punctuation Wisely:** A colon (:) can be used effectively to add a punchy detail, but use it sparingly for maximum impact.
+        
+        **AVOID:**
+        - Pure clickbait ("You Won't Believe What Happened Next!").
+        - Asking questions in the headline.
+        - Overly complex 'headlinese' with sentence fragments.
 
         ---
-        Articles to process:
+        **Headline Examples:**
+
+        **Story:** A new 'bone glue' invention that heals fractures in 3 minutes.
+        - **Too Simple:** "Scientists create a glue that heals bones."
+        - **Too Complex:** "Healing Breakthrough: Bone Glue Developed by Scientists"
+        - **GOOD:** "Scientists unveil a revolutionary 'bone glue' that sets in 3 minutes and gets absorbed by the body."
+
+        **Story:** A US trade official is visiting India.
+        - **Too Simple:** "A US trade official will visit India."
+        - **Too Complex:** "Indo-US Trade Talks: Top Negotiator Arrives for Crucial Meet"
+        - **GOOD:** "Top US trade negotiator arrives in India to finalize major tech and agriculture deal."
+        ---
+
+        **Articles to Process:**
         {articles_text}
-        ---
 
-        Return ONLY valid JSON. Ensure you include the `original_index` for each story exactly as it was provided.
+        **Output Format:**
+        Return ONLY valid JSON. Ensure you include the `original_index` for each story.
         {{
             "top_headlines": [
                 {{
                     "original_index": 1,
-                    "headline": "A simple, direct, and factual sentence describing the main news.",
+                    "headline": "A compelling, clear, and engaging headline based on the style guide.",
                     "subheadline": "A single, short, interesting detail or fact from the article.",
-                    "summary": "A 1-2 sentence summary written in simple, clear English.",
+                    "summary": "A 1-2 sentence summary written in clear, professional English.",
                     "priority": 8,
                     "original_title": "The Original Title",
                     "source": "Source Name",
