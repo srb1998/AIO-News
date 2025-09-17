@@ -55,6 +55,34 @@ class LLMClient:
             }
         except Exception as e:
             print(f"❌ Gemini error: {e}")
+            if e['error']['code'] == 503:
+                time.sleep(2)  # Simple retry delay
+                return self.generate_with_gemini_pro(prompt, max_tokens)
+            return {"error": str(e)}
+    
+    def generate_with_gemini_pro(self, prompt: str, max_tokens: int = 1000) -> Dict[str, Any]:
+        """Retry Gemini generation once after a delay."""
+        try:
+            response = self.genai_client.models.generate_content(
+                model='gemini-2.5-pro',
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=max_tokens,
+                    temperature=0.80
+                )
+            )
+            text_content = response.text if hasattr(response, 'text') else str(response)
+            estimated_tokens = len(prompt.split()) + len(text_content.split())
+            return {
+                "content": text_content,
+                "token_usage": {
+                    "model": "gemini-2.5-flash",
+                    "tokens": estimated_tokens,
+                    "cost": 0.0
+                }
+            }
+        except Exception as e:
+            print(f"❌ Gemini pro retry failed with error: {e}")
             return {"error": str(e)}
     
     async def generate_with_openai(self, prompt: str, max_tokens: int = 1000) -> Dict[str, Any]:
