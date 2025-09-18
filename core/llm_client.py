@@ -50,13 +50,13 @@ class LLMClient:
                 "token_usage": {
                     "model": "gemini-2.5-flash",
                     "tokens": estimated_tokens,
-                    "cost": 0.0  # FREE!
+                    "cost": 0.0
                 }
             }
         except Exception as e:
             print(f"❌ Gemini error: {e}")
             if e['error']['code'] == 503:
-                time.sleep(2)  # Simple retry delay
+                time.sleep(2) 
                 return self.generate_with_gemini_pro(prompt, max_tokens)
             return {"error": str(e)}
     

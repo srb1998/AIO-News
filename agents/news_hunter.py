@@ -252,7 +252,11 @@ class NewsHunterAgent:
         - **Too Simple:** "A US trade official will visit India."
         - **Too Complex:** "Indo-US Trade Talks: Top Negotiator Arrives for Crucial Meet"
         - **GOOD:** "Top US trade negotiator arrives in India to finalize major tech and agriculture deal."
-        ---
+        
+        **Highlighting Rule:**
+        - For each headline, wrap the most important word(s) or phrase(s) that should be visually highlighted with |pipe| symbols. Example: "India officially BANS betting apps like |Dream11|".
+        - Only use | | for 1-3 key words or phrases per headline.
+        --
 
         **Articles to Process:**
         {articles_text}
