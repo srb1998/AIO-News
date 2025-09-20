@@ -134,7 +134,7 @@ class NewsAgencyService:
                 
                     self.approval_queue.update_status(story_id, platform, "POSTING")
 
-                    await self.social_media_manager._process_approved_request(story_id, platform)
+                    await self.social_media_manager._execute_approved_post(story_id, platform)
                     
                     delay = random.randint(self.min_posting_delay, self.max_posting_delay)
                     print(f"[{datetime.now().strftime('%H:%M:%S')}] SCHEDULER: Cycle complete. Waiting for {delay / 60:.1f} minutes before checking for the next approved post.")
