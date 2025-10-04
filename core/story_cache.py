@@ -1,3 +1,5 @@
+# story_cache.py
+
 import json
 import os
 import re
@@ -157,6 +159,31 @@ class StoryCache:
         if removed_count > 0:
             self._save_cache(pruned_cache)
             print(f"CACHE: Pruned {removed_count} old/excess stories.")
+
+    def clear_recent_stories(self, hours: int) -> int:
+        """
+        NEW: Removes entries younger than the specified number of hours.
+        Returns the number of stories cleared.
+        """
+        if hours <= 0:
+            return 0
+
+        cache = self._load_cache()
+        now = datetime.now()
+        cutoff_time = now - timedelta(hours=hours)
+        
+        # Keep stories that are OLDER than the cutoff time
+        cleared_cache = {
+            key: entry for key, entry in cache.items()
+            if entry['timestamp'] < cutoff_time
+        }
+        
+        cleared_count = len(cache) - len(cleared_cache)
+        if cleared_count > 0:
+            self._save_cache(cleared_cache)
+            print(f"CACHE: Cleared {cleared_count} stories from the last {hours} hours.")
+        
+        return cleared_count
 
     def get_cache_stats(self) -> dict:
         """Get cache statistics using datetime objects."""

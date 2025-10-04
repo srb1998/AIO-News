@@ -106,9 +106,6 @@ class TelegramNotifier:
 
     def _get_platform_buttons(self, story_id: str, workflow_id: str, platform: str) -> Dict:
         """Create platform-specific buttons, now with a URL for media upload."""
-        # This assumes your manager.py passes the workflow_id down, or you generate one here.
-        # For simplicity, let's use the story_id as part of the workflow identifier.
-
         upload_url = f"{self.web_upload_base_url}/?story_id={story_id}&workflow_id={workflow_id}&platform={platform}"
 
         return {
@@ -118,7 +115,6 @@ class TelegramNotifier:
                     {"text": f"❌ Reject {platform.capitalize()}", "callback_data": f"reject_{platform}_{story_id}"}
                 ],
                 [
-                    # Url to upload media directly to the web uploader
                     {"text": f"📁 Upload Media for {platform.capitalize()}", "url": upload_url}
                 ]
             ]
@@ -128,7 +124,6 @@ class TelegramNotifier:
        """Process incoming updates, now checking for text commands first."""
        try:
            if "message" in update and "text" in update["message"]:
-               # Handle text commands before other logic
                is_command_handled = await self.handle_text_command(update["message"])
                if is_command_handled:
                    return
@@ -146,8 +141,6 @@ class TelegramNotifier:
         command = parts[0].lower()
 
         if not self.scheduler_manager or not self.manager_agent:
-            # Silently ignore commands if the bot is not fully initialized
-            # to prevent user confusion.
             return False
 
         if command == "/schedule":
@@ -155,24 +148,22 @@ class TelegramNotifier:
             await self._send_message(chat_id, self._escape_markdown(settings_text))
             return True
 
-        elif command == "/setfrequency":
+        elif command == "/frequency":
             if len(parts) == 2 and parts[1].isdigit():
                 seconds = int(parts[1])
                 if self.scheduler_manager.set_frequency(seconds):
-                    # --- ADDED CONFIRMATION ---
                     hours = seconds / 3600
                     await self._send_message(chat_id, self._escape_markdown(f"✅ Frequency updated to run every {hours:.1f} hours."))
                 else:
                     await self._send_message(chat_id, self._escape_markdown("❌ Invalid frequency. Must be at least 60 seconds."))
             else:
-                await self._send_message(chat_id, self._escape_markdown("Usage: `/setfrequency <seconds>` (e.g., 10800 for 3 hours)"))
+                await self._send_message(chat_id, self._escape_markdown("Usage: `/frequency <seconds>` (e.g., 10800 for 3 hours)"))
             return True
 
         elif command == "/setexclusion":
             if len(parts) == 3:
                 start_time, end_time = parts[1], parts[2]
                 if self.scheduler_manager.set_exclusion_window(start_time, end_time):
-
                     await self._send_message(chat_id, self._escape_markdown(f"✅ Exclusion window set to {start_time} - {end_time} IST."))
                 else:
                     await self._send_message(chat_id, self._escape_markdown("❌ Invalid format. Use: `/setexclusion HH:MM HH:MM` (e.g., 23:00 08:00)"))
@@ -181,17 +172,27 @@ class TelegramNotifier:
             return True
             
         elif command == "/start":
-        
             await self._send_message(chat_id, self._escape_markdown("🚀 Instantiating immediate workflow run... Please wait for the results."))
-            # Run the workflow in the background so it doesn't block the bot
             asyncio.create_task(self.manager_agent.execute_daily_workflow(posting_mode="hitl"))
+            return True
+
+        elif command == "/cc":
+            if len(parts) == 2 and parts[1].isdigit():
+                hours = int(parts[1])
+                if hours > 0:
+                    await self._send_message(chat_id, self._escape_markdown(f"⏳ Clearing cache for the last {hours} hours..."))
+                    result_message = await self.manager_agent.clear_cache_for_last_n_hours(hours)
+                    await self._send_message(chat_id, self._escape_markdown(result_message))
+                else:
+                    await self._send_message(chat_id, self._escape_markdown("❌ Hours must be a positive number."))
+            else:
+                await self._send_message(chat_id, self._escape_markdown("Usage: `/cc <hours>` (e.g., /cc 2)"))
             return True
             
         elif command in ["/on", "/off"]:
             is_enabled = command == "/on"
             self.scheduler_manager.toggle_service(is_enabled)
             status = "ENABLED" if is_enabled else "DISABLED"
-
             await self._send_message(chat_id, self._escape_markdown(f"✅ Scheduled workflows are now **{status}**."))
             return True
 
@@ -216,9 +217,7 @@ class TelegramNotifier:
     async def send_selection_notification(self, headlines_by_category: Dict[str, List[Dict[str, Any]]], workflow_id: str) -> Optional[int]:
         """
         Sends a categorized and numbered list of headlines for selection.
-        The parameter name and type hint have been corrected to match the new data structure.
         """
-        # This check now works correctly because the parameter name matches.
         if not any(headlines_by_category.values()): 
             print("⚠️ No headlines to send for selection.")
             return None
@@ -227,12 +226,10 @@ class TelegramNotifier:
         story_map = {}
         story_counter = 1
 
-        # Iterate through the dictionary to build the categorized message
         for category, stories in headlines_by_category.items():
             if not stories: 
                 continue
             
-            # Add category header
             message_text += f"\n*{self._escape_markdown(category)}*\n"
             
             for story in stories:
@@ -245,7 +242,6 @@ class TelegramNotifier:
         
         await self._send_message(self.chat_id, message_text)
 
-        # Build the button grid based on the total number of stories
         total_stories = story_counter - 1
         if total_stories <= 0:
             return
@@ -274,7 +270,6 @@ class TelegramNotifier:
             print("⚠️ Workflow summary URL is empty, skipping Telegram notification.")
             return
 
-        # Create a message with a Markdown-formatted link
         message = (
             f"✅ *Workflow Run Complete*\n\n"
             f"🔗 [Click here to view the full JSON summary]({summary_url})"
@@ -307,7 +302,7 @@ class TelegramNotifier:
                         await self.answer_callback_query(callback_query["id"], "✅ All stories selected!")
                     else:
                         await self.answer_callback_query(callback_query["id"], "⚠️ Selection failed.")
-                else: # Handle single story selection
+                else: 
                     story_hash = story_identifier
                     if self.manager_agent.register_user_selection(workflow_id, story_hash):
                         await self.answer_callback_query(callback_query["id"], f"✅ Story Selected!")
@@ -384,7 +379,6 @@ class TelegramNotifier:
         platform, story_id, msg_id = state.get("platform"), state.get("story_id"), state.get("message_id")
         self.user_states.pop(chat_id, None)
         
-        # Optionally, delete temp files if any were downloaded before cancelling
         for file_info in state.get("uploaded_files", []):
             if os.path.exists(file_info["path"]):
                 os.remove(file_info["path"])
@@ -486,7 +480,7 @@ class TelegramNotifier:
             return False
 
     async def answer_callback_query(self, callback_query_id: str, text: str):
-        if not self._session: self._session = aiohttp.Clien_session()
+        if not self._session: self._session = aiohttp.ClientSession()
         try:
             await self._session.post(f"{self.base_url}/answerCallbackQuery", json={"callback_query_id": callback_query_id, "text": text})
         except Exception as e:

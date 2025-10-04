@@ -223,6 +223,24 @@ class ManagerAgent:
             if summary_url:
                 await self.telegram_bot.send_workflow_summary_notification(workflow_id, summary_url)
 
+    async def clear_cache_for_last_n_hours(self, hours: int) -> str:
+        """Clears the story cache for the last N hours."""
+        try:
+            if "news_hunter" in self.agents and hasattr(self.agents["news_hunter"], "story_cache"):
+                print(f"Starting cache clearing for the last {hours} hours...")
+                story_cache = self.agents["news_hunter"].story_cache
+                cleared_count = story_cache.clear_recent_stories(hours=hours)
+                
+                message = f"✅ Successfully cleared {cleared_count} stories from the cache for the last {hours} hours."
+                print(message)
+                return message
+            else:
+                return "❌ News hunter agent or story cache not found."
+        except Exception as e:
+            error_message = f"❌ Cache clearing failed: {e}"
+            print(error_message)
+            return error_message
+
     def get_workflow_status(self) -> Dict[str, Any]:
         """Get enhanced workflow status with cache statistics"""
         token_summary = token_manager.get_daily_summary()
