@@ -225,9 +225,14 @@ class LLMClient:
             print(f"❌ Gemini image generation error: {e}")
             return b""
     
+    # async def generate_image(self, prompt: str) -> bytes:
+    #     """Asynchronously generates an image using Gemini."""
+    #     return await asyncio.to_thread(self._generate_image_sync, prompt)
+
     async def generate_image(self, prompt: str) -> bytes:
-        """Asynchronously generates an image using Gemini."""
-        return await asyncio.to_thread(self._generate_image_sync, prompt)
+        """Asynchronously generates an image using Gemini. (Disabled: always returns failure message)"""
+        print("❌ Gemini image generation disabled: Not calling API.")
+        return b"Failed to generate image: Gemini image API is disabled."
 
 # Global LLM client
 llm_client = LLMClient()
