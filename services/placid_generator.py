@@ -138,19 +138,13 @@ class PlacidTemplateGenerator:
             folder_path = f"news/processed/{workflow_id}/{story_id}/{platform}"
             
             cloud_result = cloudinary.uploader.upload(
-                image_data,
-                folder=folder_path,
-                public_id=f"placid_template_{story_id}_{platform}",
-                format="png",
-                quality="auto:best",
-                tags=["system_generated"],
-                context={
-                    "custom": {
-                        "story_id": story_id,
-                        "platform": platform,
-                        "workflow_id": workflow_id
-                    }
-                }
+            image_data,
+            folder=folder_path,
+            public_id=f"placid_template_{story_id}_{platform}",
+            format="png",
+            quality="auto:best",
+            tags=["system_generated"],
+            context=f"story_id={story_id}|platform={platform}|workflow_id={workflow_id}"
             )
             
             secure_url = cloud_result.get("secure_url", "")
