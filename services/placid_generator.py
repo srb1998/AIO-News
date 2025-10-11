@@ -58,12 +58,6 @@ class PlacidTemplateGenerator:
             template_id = random.choice(template_id_list)
             print(f"🎨 Randomly selected Placid template: {template_id}")
 
-            # Debug: Print what we're working with
-            print(f"📝 Debug - Headline: {headline}")
-            print(f"📝 Debug - Subheadline parameter: {subheadline}")
-            print(f"📝 Debug - Additional data: {additional_data}")
-
-            # Step 1: Construct the final Placid image URL directly.
             placid_url = self._create_image_url(
                 template_id, platform, headline, background_image_url, additional_data or {}, subheadline
             )
@@ -71,7 +65,6 @@ class PlacidTemplateGenerator:
             if not placid_url:
                 return None
             
-            # Step 2: Download from the Placid URL and upload to Cloudinary.
             print(f"Uploading generated Placid image to Cloudinary...")
             cloudinary_url = await self._upload_to_cloudinary(
                 placid_url, platform, story_id, workflow_id
@@ -103,11 +96,9 @@ class PlacidTemplateGenerator:
         headline_layer_name = layers["headline"]
         image_layer_name = layers["background_image"]
 
-        # URL encode all dynamic content
         encoded_headline = quote_plus(headline)
         encoded_background_url = quote_plus(background_image_url)
 
-        # Construct the URL as per the Placid documentation
         final_url = (
             f"{self.base_url}{template_id}?"
             f"{headline_layer_name}[text]={encoded_headline}&"
@@ -117,16 +108,9 @@ class PlacidTemplateGenerator:
         subheadline_layer_name = layers.get("subheadline")
         subheadline_text = subheadline or additional_data.get("subheadline")
 
-        print(f"📝 Debug - Subheadline layer name: {subheadline_layer_name}")
-        print(f"📝 Debug - Final subheadline text: {subheadline_text}")
-
-        # Handle subheadline if provided
         if subheadline_layer_name and subheadline_text:
             encoded_subheadline = quote_plus(str(subheadline_text))
             final_url += f"&{subheadline_layer_name}[text]={encoded_subheadline}"
-            print(f"📝 Debug - Added subheadline to URL: {subheadline_layer_name}[text]={encoded_subheadline}")
-        else:
-            print(f"⚠️ Debug - Subheadline not added. Layer name: {subheadline_layer_name}, Text: {subheadline_text}")
 
         print(f"✅ Constructed Placid URL: {final_url}")
         return final_url
@@ -139,7 +123,8 @@ class PlacidTemplateGenerator:
         workflow_id: str
     ) -> str:
         """
-        Downloads the image from the generated Placid URL and uploads it to Cloudinary.
+        Downloads the image from the generated Placid URL and uploads it to Cloudinary,
+        NOW WITH THE CORRECT CONTEXT.
         """
         try:
             async with aiohttp.ClientSession() as session:
@@ -150,7 +135,6 @@ class PlacidTemplateGenerator:
                         print(f"❌ Failed to download from Placid URL ({response.status})")
                         return ""
 
-            # Upload to Cloudinary
             folder_path = f"news/processed/{workflow_id}/{story_id}/{platform}"
             
             cloud_result = cloudinary.uploader.upload(
@@ -159,11 +143,18 @@ class PlacidTemplateGenerator:
                 public_id=f"placid_template_{story_id}_{platform}",
                 format="png",
                 quality="auto:best",
-                tags=["system_generated"]
+                tags=["system_generated"],
+                context={
+                    "custom": {
+                        "story_id": story_id,
+                        "platform": platform,
+                        "workflow_id": workflow_id
+                    }
+                }
             )
             
             secure_url = cloud_result.get("secure_url", "")
-            print(f"✅ Placid image uploaded to Cloudinary: {secure_url}")
+            print(f"✅ Placid image uploaded to Cloudinary WITH context: {secure_url}")
             return secure_url
             
         except Exception as e:
@@ -194,12 +185,10 @@ class PlacidImageGenerator(ImageGenerator):
         if self.use_placid_templates:
             print(f"🎨 Using Placid template for {platform} (Story {story_id})")
             
-            # Prepare additional data for template
             additional_data = {}
             if subheadline:
                 additional_data["subheadline"] = subheadline
             
-            # Use Placid template system
             placid_url = await self.placid_generator.generate_from_template(
                 platform=platform,
                 headline=headline,
@@ -215,7 +204,6 @@ class PlacidImageGenerator(ImageGenerator):
             else:
                 print("⚠️ Placid template failed, falling back to Pillow...")
         
-        # Fallback to original Pillow method if Placid fails
         return await super().apply_headline_to_image(
             image_path_or_url, story_id, platform, headline, subheadline, workflow_id
         )
@@ -231,36 +219,6 @@ class PlacidImageGenerator(ImageGenerator):
         """
         Generate AI image then apply Placid template, or use Placid with text-only template.
         """
-        # if self.use_placid_templates:
-        #     # Option 1: Generate base AI image first, then apply Placid template
-        #     ai_image_url = await self._generate_base_ai_image(
-        #         headline, summary, platform, workflow_id, story_id
-        #     )
-            
-        #     if ai_image_url:
-        #         additional_data = {"subheadline": summary} if summary else {}
-        #         return await self.placid_generator.generate_from_template(
-        #             platform=platform,
-        #             headline=headline, 
-        #             background_image_url=ai_image_url,
-        #             story_id=story_id,
-        #             workflow_id=workflow_id,
-        #             additional_data=additional_data
-        #         )
-            
-        #     # Option 2: Use Placid template with no background (text-only design)
-        #     else:
-        #         print("⚠️ AI image failed, using text-only Placid template")
-        #         return await self.placid_generator.generate_from_template(
-        #             platform=platform,
-        #             headline=headline,
-        #             background_image_url="",  # Empty for text-only template
-        #             story_id=story_id,
-        #             workflow_id=workflow_id,
-        #             additional_data={"subheadline": summary}
-        #         )
-        
-        # Fallback to original method
         return await super().generate_social_image(
-        headline, summary, story_id, platform, workflow_id
+            headline, summary, story_id, platform, workflow_id
         )
