@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+from aiohttp import request
 import cloudinary
 import cloudinary.uploader
 from typing import Dict, List, Optional, Tuple
@@ -299,6 +300,12 @@ class SocialMediaManagerAgent:
     async def _execute_approved_post(self, story_id: str, platform: str):
         
         request = self.approval_queue.get_request(story_id, platform)
+        print(f"🔍 DEBUG: Executing post for {story_id}/{platform}")
+        print(f"   Status: {request.get('status')}")
+        print(f"   Images: {request.get('images', [])}")
+        print(f"   Videos: {request.get('videos', [])}")
+        print(f"   Platform content: {request.get('platform_content', '')[:100]}")
+        print(f"   Hashtags: {request.get('hashtags', [])}")
         if not request or request["status"] not in ["APPROVED", "POSTING"]:
             print(f"⚠️ Post {story_id}/{platform} is not in a postable state. Status: {request.get('status')}. Aborting.")
             return
@@ -312,12 +319,18 @@ class SocialMediaManagerAgent:
 
         # Format the final content with hashtags
         final_content = self._format_post_content(platform, headline, platform_content, hashtags)
-
         print(f"🚀 REAL POSTING to {platform.upper()}:")
         print(f"   Final Content: {final_content[:200]}...")
         print(f"   Images: {len(images)} files")
         print(f"   Videos: {len(videos)} files")
         print(f"   Hashtags: {hashtags}")
+
+        if not final_content or final_content.strip() == "":
+            print(f"❌ ERROR: Empty caption for {platform}/{story_id}")
+            print(f"   Headline: {headline}")
+            print(f"   Platform content: {platform_content}")
+            print(f"   Hashtags: {hashtags}")
+            return
 
         try:
             # Use the real social platform manager with formatted content

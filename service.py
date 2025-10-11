@@ -133,6 +133,9 @@ class NewsAgencyService:
                     platform = next_post['platform']
                     print(f"[{datetime.now().strftime('%H:%M:%S')}] SCHEDULER: Found approved post: {story_id}/{platform}.")
                 
+                    print(f"DEBUG: Post details - Images: {len(next_post.get('images', []))}, Videos: {len(next_post.get('videos', []))}")
+                    print(f"DEBUG: Content: {next_post.get('content', '')[:100]}...")
+
                     self.approval_queue.update_status(story_id, platform, "POSTING")
 
                     await self.social_media_manager._execute_approved_post(story_id, platform)
