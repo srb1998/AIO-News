@@ -1,5 +1,3 @@
-# approval_queue.py - Updated with hashtags and platform content support
-
 import json
 import os
 from datetime import datetime, timedelta
@@ -12,8 +10,8 @@ class ApprovalQueue:
         self.timeout_minutes = settings.TELEGRAM_CONFIG["approval_timeout_minutes"]
         os.makedirs(self.storage_path, exist_ok=True)
 
-    def add_request(self, story_id: str, platform: str, workflow_id: str, content: str, 
-                   sub_content: str, images: List[str], videos: List[str], 
+    def add_request(self, story_id: str, platform: str, workflow_id: str, content: str,
+                   sub_content: str, images: List[str], videos: List[str],
                    message_ids: Dict[str, int], created_at: datetime,
                    platform_content: str = "", hashtags: List[str] = None) -> None:
         request = {
@@ -27,7 +25,7 @@ class ApprovalQueue:
         file_path = os.path.join(self.storage_path, f"{story_id}_{platform}.json")
         with open(file_path, 'w') as f:
             json.dump(request, f, indent=2)
-    
+
     def set_processed_first_image(self, story_id: str, platform: str, media_url: str) -> Optional[Dict]:
         file_path = os.path.join(self.storage_path, f"{story_id}_{platform}.json")
         if not os.path.exists(file_path): return None
@@ -61,14 +59,13 @@ class ApprovalQueue:
     def get_request(self, story_id: str, platform: str) -> Optional[Dict]:
         file_path = os.path.join(self.storage_path, f"{story_id}_{platform}.json")
         if not os.path.exists(file_path): return None
-        with open(file_path, 'r') as f: 
+        with open(file_path, 'r') as f:
             request = json.load(f)
         if "platform_content" not in request: request["platform_content"] = ""
         if "hashtags" not in request: request["hashtags"] = []
         return request
-    
+
     def update_status(self, story_id: str, platform: str, status: str) -> Optional[Dict]:
-        """Update the status of an approval request (e.g., to 'APPROVED' or 'REJECTED')."""
         file_path = os.path.join(self.storage_path, f"{story_id}_{platform}.json")
         if not os.path.exists(file_path): return None
         try:
@@ -124,10 +121,13 @@ class ApprovalQueue:
             try:
                 with open(file_path, 'r') as f:
                     request = json.load(f)
-                timeout_at = datetime.fromisoformat(request["timeout_at"])
-                if request["status"] == "PENDING" and current_time >= timeout_at:
-                    timed_out.append(request)
-            except Exception as e:
+
+                if request.get("status") == "PENDING" and "timeout_at" in request and request["timeout_at"]:
+                    timeout_at = datetime.fromisoformat(request["timeout_at"])
+                    if current_time >= timeout_at:
+                        timed_out.append(request)
+
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
                 print(f"❌ Failed to check timeout for {filename}: {e}")
         return timed_out
 
