@@ -299,7 +299,8 @@ class SocialMediaManagerAgent:
     async def _execute_approved_post(self, story_id: str, platform: str):
         
         request = self.approval_queue.get_request(story_id, platform)
-        if not request or request["status"] != "APPROVED":
+        if not request or request["status"] not in ["APPROVED", "POSTING"]:
+            print(f"⚠️ Post {story_id}/{platform} is not in a postable state. Status: {request.get('status')}. Aborting.")
             return
 
         # Extract content and media
