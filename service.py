@@ -28,7 +28,7 @@ class NewsAgencyService:
     def __init__(self):
         print("Initializing AIO-News Service...")
         # --- 1. Initialize Core Components ---
-        self.manager = ManagerAgent()
+        # self.manager = ManagerAgent()
         self.telegram_bot = TelegramNotifier(
             bot_token=os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN")
         )
