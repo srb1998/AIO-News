@@ -258,6 +258,11 @@ class NewsHunterAgent:
         - Only use | | for 1-3 key words or phrases per headline.
         --
 
+        **Highlighting Rule:**
+        - For each headline, wrap the most important word(s) or phrase(s) that should be visually highlighted with |pipe| symbols. Example: "India officially BANS betting apps like |Dream11|".
+        - Only use | | for 1-3 key words or phrases per headline.
+        --
+        
         **Articles to Process:**
         {articles_text}
 
